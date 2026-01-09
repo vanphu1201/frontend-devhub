@@ -1,13 +1,24 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import React from 'react';
+import Layout from '@/components/layout/Layout';
+import HeroSection from '@/components/home/HeroSection';
+import FeaturesSection from '@/components/home/FeaturesSection';
+import TrendingSection from '@/components/home/TrendingSection';
+import MarketplacePreview from '@/components/home/MarketplacePreview';
+import TopContributors from '@/components/home/TopContributors';
+import TribesSection from '@/components/home/TribesSection';
+import CTASection from '@/components/home/CTASection';
 
-const Index = () => {
+const Index: React.FC = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <Layout>
+      <HeroSection />
+      <FeaturesSection />
+      <TrendingSection />
+      <MarketplacePreview />
+      <TopContributors />
+      <TribesSection />
+      <CTASection />
+    </Layout>
   );
 };
 
