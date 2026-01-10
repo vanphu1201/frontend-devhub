@@ -24,7 +24,8 @@ import {
   Download,
   Trophy,
   Target,
-  Zap
+  Zap,
+  Layers as LayersIcon
 } from 'lucide-react';
 
 const Profile: React.FC = () => {
@@ -271,7 +272,7 @@ const Profile: React.FC = () => {
             <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1 mb-6">
               {[
                 { id: 'posts', label: 'Bài viết', icon: FileText },
-                { id: 'series', label: 'Series', icon: Layers },
+                { id: 'series', label: 'Series', icon: LayersIcon },
                 { id: 'products', label: 'Sản phẩm', icon: ShoppingBag },
                 { id: 'badges', label: 'Huy hiệu', icon: Award },
               ].map((tab) => (
