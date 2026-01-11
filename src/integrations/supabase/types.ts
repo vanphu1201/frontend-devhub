@@ -14,7 +14,252 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      badges: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          points_required: number | null
+          type: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          points_required?: number | null
+          type?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          points_required?: number | null
+          type?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          demo_url: string | null
+          description: string
+          documentation_url: string | null
+          downloads_count: number | null
+          id: string
+          is_featured: boolean | null
+          is_published: boolean | null
+          long_description: string | null
+          name: string
+          original_price: number | null
+          preview_images: string[] | null
+          price: number | null
+          rating: number | null
+          reviews_count: number | null
+          support_duration: string | null
+          tech_stack: string[] | null
+          updated_at: string | null
+          user_id: string
+          version: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          demo_url?: string | null
+          description: string
+          documentation_url?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          long_description?: string | null
+          name: string
+          original_price?: number | null
+          preview_images?: string[] | null
+          price?: number | null
+          rating?: number | null
+          reviews_count?: number | null
+          support_duration?: string | null
+          tech_stack?: string[] | null
+          updated_at?: string | null
+          user_id: string
+          version?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          demo_url?: string | null
+          description?: string
+          documentation_url?: string | null
+          downloads_count?: number | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          long_description?: string | null
+          name?: string
+          original_price?: number | null
+          preview_images?: string[] | null
+          price?: number | null
+          rating?: number | null
+          reviews_count?: number | null
+          support_duration?: string | null
+          tech_stack?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+          version?: string | null
+        }
+        Relationships: []
+      }
+      purchases: {
+        Row: {
+          download_count: number | null
+          id: string
+          price_paid: number
+          product_id: string
+          purchased_at: string | null
+          user_id: string
+        }
+        Insert: {
+          download_count?: number | null
+          id?: string
+          price_paid: number
+          product_id: string
+          purchased_at?: string | null
+          user_id: string
+        }
+        Update: {
+          download_count?: number | null
+          id?: string
+          price_paid?: number
+          product_id?: string
+          purchased_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tribe_members: {
+        Row: {
+          id: string
+          joined_at: string | null
+          role: string | null
+          tribe_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          tribe_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          role?: string | null
+          tribe_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tribe_members_tribe_id_fkey"
+            columns: ["tribe_id"]
+            isOneToOne: false
+            referencedRelation: "tribes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tribes: {
+        Row: {
+          avatar: string | null
+          cover_image: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_private: boolean | null
+          members_count: number | null
+          name: string
+          posts_count: number | null
+          slug: string
+          tags: string[] | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          cover_image?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          members_count?: number | null
+          name: string
+          posts_count?: number | null
+          slug: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          cover_image?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_private?: boolean | null
+          members_count?: number | null
+          name?: string
+          posts_count?: number | null
+          slug?: string
+          tags?: string[] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_badges: {
+        Row: {
+          awarded_at: string | null
+          badge_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string | null
+          badge_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string | null
+          badge_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
