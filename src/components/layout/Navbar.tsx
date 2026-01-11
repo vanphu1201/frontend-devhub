@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Code2, 
   Home, 
@@ -16,11 +16,13 @@ import {
   Settings,
   LogOut,
   BookOpen,
-  MessageSquare
+  MessageSquare,
+  LogIn
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,10 +31,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { toast } from 'sonner';
 
 const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const { user, signOut, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,9 +47,16 @@ const Navbar: React.FC = () => {
     { path: '/blog', label: 'Blog', icon: Newspaper },
     { path: '/library', label: 'Thư viện', icon: BookOpen },
     { path: '/marketplace', label: 'Marketplace', icon: ShoppingBag },
+    { path: '/tribes', label: 'Tribes', icon: Users },
   ];
 
   const isActive = (path: string) => location.pathname === path;
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Đã đăng xuất');
+    navigate('/');
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
@@ -121,58 +133,74 @@ const Navbar: React.FC = () => {
               <MessageSquare className="w-5 h-5" />
             </Button>
 
-            {/* User Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
-                    D
-                  </div>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">DevUser</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      dev@example.com
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="reputation" className="text-xs">
-                        ⭐ 1,250 RP
-                      </Badge>
-                      <Badge variant="gold" className="text-xs">
-                        Pro
-                      </Badge>
+            {/* User Menu or Login Button */}
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
+                      {user.email?.charAt(0).toUpperCase() || 'U'}
                     </div>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                    <User className="w-4 h-4" />
-                    Hồ sơ
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user.user_metadata?.display_name || user.email?.split('@')[0]}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="reputation" className="text-xs">
+                          ⭐ 0 RP
+                        </Badge>
+                      </div>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <User className="w-4 h-4" />
+                      Hồ sơ
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
+                      <ShoppingBag className="w-4 h-4" />
+                      Sản phẩm đã mua
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="w-4 h-4" />
+                      Cài đặt
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="sm" asChild className="hidden sm:flex">
+                  <Link to="/login">Đăng nhập</Link>
+                </Button>
+                <Button variant="gradient" size="sm" asChild>
+                  <Link to="/register" className="flex items-center gap-1">
+                    <LogIn className="w-4 h-4" />
+                    <span className="hidden sm:inline">Đăng ký</span>
                   </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
-                    <ShoppingBag className="w-4 h-4" />
-                    Sản phẩm đã mua
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-                    <Settings className="w-4 h-4" />
-                    Cài đặt
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-destructive focus:text-destructive cursor-pointer">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </Button>
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <Button
