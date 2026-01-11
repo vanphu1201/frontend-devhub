@@ -1,20 +1,72 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Code2, Mail, Lock, Eye, EyeOff, Github, Chrome } from 'lucide-react';
+import { Code2, Mail, Lock, Eye, EyeOff, Github, Chrome, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  email: z.string().trim().email({ message: 'Email không hợp lệ' }),
+  password: z.string().min(6, { message: 'Mật khẩu phải có ít nhất 6 ký tự' }),
+});
 
 const Login: React.FC = () => {
+  const navigate = useNavigate();
+  const { signIn, signInWithGithub, signInWithGoogle, user, loading } = useAuth();
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (user && !loading) {
+      navigate('/');
+    }
+  }, [user, loading, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    // Validate input
+    const result = loginSchema.safeParse({ email, password });
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach((err) => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
     setIsLoading(true);
-    // TODO: Implement login logic
-    setTimeout(() => setIsLoading(false), 1500);
+    const { error } = await signIn(email, password);
+    
+    if (error) {
+      if (error.message.includes('Invalid login credentials')) {
+        toast.error('Email hoặc mật khẩu không đúng');
+      } else {
+        toast.error(error.message);
+      }
+    } else {
+      toast.success('Đăng nhập thành công!');
+      navigate('/');
+    }
+    setIsLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex">
@@ -36,11 +88,11 @@ const Login: React.FC = () => {
 
           {/* Social Login */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={signInWithGithub}>
               <Github className="w-5 h-5" />
               GitHub
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button variant="outline" className="gap-2" onClick={signInWithGoogle}>
               <Chrome className="w-5 h-5" />
               Google
             </Button>
@@ -68,10 +120,18 @@ const Login: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  className={`w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border ${
+                    errors.email ? 'border-destructive' : 'border-border'
+                  } focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all`}
                   required
                 />
               </div>
+              {errors.email && (
+                <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -88,7 +148,9 @@ const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-12 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                  className={`w-full pl-10 pr-12 py-2.5 rounded-lg bg-muted/50 border ${
+                    errors.password ? 'border-destructive' : 'border-border'
+                  } focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all`}
                   required
                 />
                 <button
@@ -99,6 +161,12 @@ const Login: React.FC = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-destructive mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {errors.password}
+                </p>
+              )}
             </div>
 
             <Button 
