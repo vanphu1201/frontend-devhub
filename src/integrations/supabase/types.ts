@@ -44,6 +44,251 @@ export type Database = {
         }
         Relationships: []
       }
+      blog_posts: {
+        Row: {
+          category: string | null
+          comments_count: number | null
+          content: string | null
+          created_at: string | null
+          excerpt: string | null
+          id: string
+          is_featured: boolean | null
+          is_published: boolean | null
+          likes_count: number | null
+          read_time_minutes: number | null
+          series_id: string | null
+          series_order: number | null
+          slug: string
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+          views_count: number | null
+        }
+        Insert: {
+          category?: string | null
+          comments_count?: number | null
+          content?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          likes_count?: number | null
+          read_time_minutes?: number | null
+          series_id?: string | null
+          series_order?: number | null
+          slug: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          user_id: string
+          views_count?: number | null
+        }
+        Update: {
+          category?: string | null
+          comments_count?: number | null
+          content?: string | null
+          created_at?: string | null
+          excerpt?: string | null
+          id?: string
+          is_featured?: boolean | null
+          is_published?: boolean | null
+          likes_count?: number | null
+          read_time_minutes?: number | null
+          series_id?: string | null
+          series_order?: number | null
+          slug?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          views_count?: number | null
+        }
+        Relationships: []
+      }
+      bookmarks: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string | null
+          product_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          product_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string | null
+          product_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookmarks_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookmarks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          likes_count: number | null
+          parent_id: string | null
+          post_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          likes_count?: number | null
+          parent_id?: string | null
+          post_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          likes_count?: number | null
+          parent_id?: string | null
+          post_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      follows: {
+        Row: {
+          created_at: string | null
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      post_likes: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          comments_count: number | null
+          content: string
+          created_at: string | null
+          id: string
+          is_published: boolean | null
+          likes_count: number | null
+          shares_count: number | null
+          tags: string[] | null
+          updated_at: string | null
+          user_id: string
+          views_count: number | null
+        }
+        Insert: {
+          comments_count?: number | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          likes_count?: number | null
+          shares_count?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id: string
+          views_count?: number | null
+        }
+        Update: {
+          comments_count?: number | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_published?: boolean | null
+          likes_count?: number | null
+          shares_count?: number | null
+          tags?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+          views_count?: number | null
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           category: string | null
@@ -116,6 +361,63 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          followers_count: number | null
+          following_count: number | null
+          github_username: string | null
+          id: string
+          linkedin_username: string | null
+          location: string | null
+          reputation: number | null
+          skills: string[] | null
+          twitter_username: string | null
+          updated_at: string | null
+          username: string | null
+          website: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          github_username?: string | null
+          id: string
+          linkedin_username?: string | null
+          location?: string | null
+          reputation?: number | null
+          skills?: string[] | null
+          twitter_username?: string | null
+          updated_at?: string | null
+          username?: string | null
+          website?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          followers_count?: number | null
+          following_count?: number | null
+          github_username?: string | null
+          id?: string
+          linkedin_username?: string | null
+          location?: string | null
+          reputation?: number | null
+          skills?: string[] | null
+          twitter_username?: string | null
+          updated_at?: string | null
+          username?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
       purchases: {
         Row: {
           download_count: number | null
@@ -144,6 +446,219 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "purchases_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_questions: {
+        Row: {
+          correct_answer: number
+          created_at: string | null
+          explanation: string | null
+          id: string
+          options: Json
+          order_index: number | null
+          question: string
+          quiz_id: string
+        }
+        Insert: {
+          correct_answer: number
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          options: Json
+          order_index?: number | null
+          question: string
+          quiz_id: string
+        }
+        Update: {
+          correct_answer?: number
+          created_at?: string | null
+          explanation?: string | null
+          id?: string
+          options?: Json
+          order_index?: number | null
+          question?: string
+          quiz_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_questions_quiz_id_fkey"
+            columns: ["quiz_id"]
+            isOneToOne: false
+            referencedRelation: "quizzes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quizzes: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          difficulty: string | null
+          id: string
+          is_published: boolean | null
+          questions_count: number | null
+          time_limit_minutes: number | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          id?: string
+          is_published?: boolean | null
+          questions_count?: number | null
+          time_limit_minutes?: number | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          difficulty?: string | null
+          id?: string
+          is_published?: boolean | null
+          questions_count?: number | null
+          time_limit_minutes?: number | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      resources: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          downloads_count: number | null
+          file_size: string | null
+          file_url: string | null
+          id: string
+          is_premium: boolean | null
+          price: number | null
+          rating: number | null
+          reviews_count: number | null
+          title: string
+          type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          downloads_count?: number | null
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          is_premium?: boolean | null
+          price?: number | null
+          rating?: number | null
+          reviews_count?: number | null
+          title: string
+          type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          downloads_count?: number | null
+          file_size?: string | null
+          file_url?: string | null
+          id?: string
+          is_premium?: boolean | null
+          price?: number | null
+          rating?: number | null
+          reviews_count?: number | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ticket_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_staff_reply: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_staff_reply?: boolean | null
+          message: string
+          ticket_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_staff_reply?: boolean | null
+          message?: string
+          ticket_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          created_at: string | null
+          id: string
+          priority: string | null
+          product_id: string | null
+          status: string | null
+          subject: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          product_id?: string | null
+          status?: string | null
+          subject: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          priority?: string | null
+          product_id?: string | null
+          status?: string | null
+          subject?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
