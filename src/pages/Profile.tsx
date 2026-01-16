@@ -11,121 +11,53 @@ import {
   Twitter, 
   Linkedin,
   Settings,
-  Edit,
   Users,
   FileText,
   MessageSquare,
   Award,
-  TrendingUp,
   Star,
   Heart,
   Eye,
   ShoppingBag,
-  Download,
   Trophy,
   Target,
   Zap,
-  Layers as LayersIcon
+  Layers as LayersIcon,
+  Loader2,
+  Edit
 } from 'lucide-react';
+import { useProfile, useIsFollowing, useFollowUser, useUnfollowUser } from '@/hooks/useProfile';
+import { useUserPosts, Post } from '@/hooks/usePosts';
+import { useUserProducts, Product } from '@/hooks/useProducts';
+import { useAuth } from '@/hooks/useAuth';
+import { formatDistanceToNow } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 const Profile: React.FC = () => {
   const { username } = useParams();
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'posts' | 'series' | 'products' | 'badges'>('posts');
+  
+  // Determine if viewing own profile or someone else's
+  const profileUserId = username || currentUser?.id;
+  
+  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(profileUserId);
+  const { data: isFollowing } = useIsFollowing(profileUserId || '');
+  const { data: userPosts, isLoading: postsLoading } = useUserPosts(profileUserId || '');
+  const { data: userProducts, isLoading: productsLoading } = useUserProducts(profileUserId || '');
+  const followUser = useFollowUser();
+  const unfollowUser = useUnfollowUser();
+  
+  const isOwnProfile = currentUser?.id === profileUserId;
 
-  // Mock data
-  const user = {
-    name: 'Nguyễn Minh Đức',
-    username: '@minhduc',
-    avatar: 'M',
-    bio: 'Full-stack developer | 5 năm kinh nghiệm | Yêu thích Node.js và React | Building @DevHub',
-    location: 'Hà Nội, Việt Nam',
-    website: 'https://minhduc.dev',
-    joinDate: 'Tháng 3, 2022',
-    reputation: 12500,
-    rank: 1,
-    followers: 2340,
-    following: 156,
-    skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 'Docker'],
-    socials: {
-      github: 'minhduc',
-      twitter: 'minhduc_dev',
-      linkedin: 'minhduc',
-    },
-    stats: {
-      posts: 156,
-      series: 8,
-      products: 5,
-      answers: 423,
-      views: 125000,
-      likes: 8900,
-    },
-    badges: [
-      { name: 'JavaScript Expert', type: 'gold', icon: '⚡' },
-      { name: 'Top Contributor', type: 'gold', icon: '🏆' },
-      { name: 'Bug Hunter', type: 'silver', icon: '🐛' },
-      { name: 'Mentor', type: 'silver', icon: '🎓' },
-      { name: 'Early Adopter', type: 'bronze', icon: '🚀' },
-      { name: '100 Posts', type: 'bronze', icon: '📝' },
-    ],
-    achievements: [
-      { name: 'Streak 30 ngày', progress: 100, icon: '🔥' },
-      { name: 'Nhận 1000 likes', progress: 89, icon: '❤️' },
-      { name: 'Giúp đỡ 500 người', progress: 85, icon: '🤝' },
-      { name: 'Viết 200 bài', progress: 78, icon: '✍️' },
-    ],
+  const handleFollowToggle = () => {
+    if (!profileUserId) return;
+    if (isFollowing) {
+      unfollowUser.mutate(profileUserId);
+    } else {
+      followUser.mutate(profileUserId);
+    }
   };
-
-  const posts = [
-    {
-      id: 1,
-      title: 'Hướng dẫn xây dựng REST API với Node.js và Express từ A-Z',
-      excerpt: 'Bài viết chi tiết về cách thiết kế và triển khai REST API chuyên nghiệp...',
-      tags: ['Node.js', 'Express', 'API'],
-      createdAt: '2 ngày trước',
-      views: 15420,
-      likes: 892,
-      comments: 156,
-    },
-    {
-      id: 2,
-      title: 'React Performance Optimization Tips',
-      excerpt: 'Các kỹ thuật tối ưu hiệu suất cho ứng dụng React...',
-      tags: ['React', 'Performance'],
-      createdAt: '1 tuần trước',
-      views: 8900,
-      likes: 567,
-      comments: 89,
-    },
-    {
-      id: 3,
-      title: 'TypeScript Best Practices 2024',
-      excerpt: 'Tổng hợp các best practices khi sử dụng TypeScript...',
-      tags: ['TypeScript', 'JavaScript'],
-      createdAt: '2 tuần trước',
-      views: 6700,
-      likes: 432,
-      comments: 67,
-    },
-  ];
-
-  const products = [
-    {
-      id: 1,
-      name: 'SaaS Dashboard Pro',
-      price: 890000,
-      rating: 4.9,
-      sales: 234,
-      image: '/placeholder.svg',
-    },
-    {
-      id: 2,
-      name: 'React Starter Kit',
-      price: 0,
-      rating: 4.7,
-      sales: 567,
-      image: '/placeholder.svg',
-    },
-  ];
 
   const formatPrice = (price: number) => {
     if (price === 0) return 'Miễn phí';
@@ -134,6 +66,51 @@ const Profile: React.FC = () => {
       currency: 'VND',
     }).format(price);
   };
+
+  const formatTime = (dateStr: string) => {
+    return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: vi });
+  };
+
+  const getInitial = () => {
+    if (profile?.display_name) return profile.display_name[0].toUpperCase();
+    if (profile?.username) return profile.username[0].toUpperCase();
+    return 'U';
+  };
+
+  // Mock badges and achievements (would come from separate tables in real app)
+  const badges = [
+    { name: 'Early Adopter', type: 'bronze', icon: '🚀' },
+    { name: 'First Post', type: 'bronze', icon: '📝' },
+  ];
+
+  const achievements = [
+    { name: 'Streak 7 ngày', progress: 50, icon: '🔥' },
+    { name: 'Nhận 100 likes', progress: 25, icon: '❤️' },
+  ];
+
+  if (profileLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (profileError || !profile) {
+    return (
+      <Layout>
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+          <h2 className="text-2xl font-bold mb-4">Không tìm thấy người dùng</h2>
+          <p className="text-muted-foreground mb-6">Người dùng này không tồn tại hoặc đã bị xóa.</p>
+          <Button variant="gradient" asChild>
+            <Link to="/">Về trang chủ</Link>
+          </Button>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -148,116 +125,152 @@ const Profile: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-16 sm:-mt-20">
               {/* Avatar */}
               <div className="relative">
-                <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl sm:text-5xl font-bold text-primary-foreground border-4 border-background shadow-xl">
-                  {user.avatar}
-                </div>
-                <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg border-2 border-background">
-                  👑
-                </div>
+                {profile.avatar_url ? (
+                  <img 
+                    src={profile.avatar_url} 
+                    alt={profile.display_name || profile.username || 'User'}
+                    className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-4 border-background shadow-xl"
+                  />
+                ) : (
+                  <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl sm:text-5xl font-bold text-primary-foreground border-4 border-background shadow-xl">
+                    {getInitial()}
+                  </div>
+                )}
+                {profile.reputation && profile.reputation > 5000 && (
+                  <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg border-2 border-background">
+                    👑
+                  </div>
+                )}
               </div>
 
               {/* Info */}
               <div className="flex-1 mt-4 sm:mt-0 sm:mb-2">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
-                  <h1 className="text-2xl font-bold">{user.name}</h1>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="gold" className="gap-1">
-                      <Trophy className="w-3 h-3" />
-                      Rank #{user.rank}
-                    </Badge>
-                    <Badge variant="gradient">Pro Member</Badge>
-                  </div>
+                  <h1 className="text-2xl font-bold">
+                    {profile.display_name || profile.username || 'Người dùng'}
+                  </h1>
+                  {profile.reputation && profile.reputation > 10000 && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="gold" className="gap-1">
+                        <Trophy className="w-3 h-3" />
+                        {(profile.reputation / 1000).toFixed(0)}K RP
+                      </Badge>
+                    </div>
+                  )}
                 </div>
-                <p className="text-muted-foreground">{user.username}</p>
+                {profile.username && (
+                  <p className="text-muted-foreground">@{profile.username}</p>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex gap-2 mt-4 sm:mt-0 sm:mb-2">
-                <Button variant="gradient">Theo dõi</Button>
-                <Button variant="outline">Nhắn tin</Button>
-                <Button variant="ghost" size="icon">
-                  <Settings className="w-5 h-5" />
-                </Button>
+                {isOwnProfile ? (
+                  <>
+                    <Button variant="gradient" className="gap-2" asChild>
+                      <Link to="/settings/profile">
+                        <Edit className="w-4 h-4" />
+                        Chỉnh sửa
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="icon" asChild>
+                      <Link to="/settings">
+                        <Settings className="w-5 h-5" />
+                      </Link>
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant={isFollowing ? "outline" : "gradient"}
+                      onClick={handleFollowToggle}
+                      disabled={followUser.isPending || unfollowUser.isPending}
+                    >
+                      {isFollowing ? 'Đang theo dõi' : 'Theo dõi'}
+                    </Button>
+                    <Button variant="outline">Nhắn tin</Button>
+                  </>
+                )}
               </div>
             </div>
 
             {/* Bio & Details */}
             <div className="mt-6 grid lg:grid-cols-[1fr_300px] gap-6">
               <div>
-                <p className="text-foreground mb-4">{user.bio}</p>
+                {profile.bio && (
+                  <p className="text-foreground mb-4">{profile.bio}</p>
+                )}
                 
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {user.location}
-                  </span>
-                  <a href={user.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
-                    <LinkIcon className="w-4 h-4" />
-                    {user.website.replace('https://', '')}
-                  </a>
+                  {profile.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="w-4 h-4" />
+                      {profile.location}
+                    </span>
+                  )}
+                  {profile.website && (
+                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-primary transition-colors">
+                      <LinkIcon className="w-4 h-4" />
+                      {profile.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
                   <span className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    Tham gia {user.joinDate}
+                    Tham gia {formatTime(profile.created_at)}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-3 mb-4">
-                  {user.socials.github && (
-                    <a href={`https://github.com/${user.socials.github}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
+                  {profile.github_username && (
+                    <a href={`https://github.com/${profile.github_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
                       <Github className="w-5 h-5" />
                     </a>
                   )}
-                  {user.socials.twitter && (
-                    <a href={`https://twitter.com/${user.socials.twitter}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
+                  {profile.twitter_username && (
+                    <a href={`https://twitter.com/${profile.twitter_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
                       <Twitter className="w-5 h-5" />
                     </a>
                   )}
-                  {user.socials.linkedin && (
-                    <a href={`https://linkedin.com/in/${user.socials.linkedin}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
+                  {profile.linkedin_username && (
+                    <a href={`https://linkedin.com/in/${profile.linkedin_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
                       <Linkedin className="w-5 h-5" />
                     </a>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {user.skills.map((skill) => (
-                    <Badge key={skill} variant="tech">{skill}</Badge>
-                  ))}
-                </div>
+                {profile.skills && profile.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {profile.skills.map((skill) => (
+                      <Badge key={skill} variant="tech">{skill}</Badge>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Stats Card */}
               <div className="bg-muted/50 rounded-xl p-4">
                 <div className="grid grid-cols-3 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{user.reputation.toLocaleString()}</div>
+                    <div className="text-2xl font-bold text-primary">{(profile.reputation || 0).toLocaleString()}</div>
                     <div className="text-xs text-muted-foreground">Điểm uy tín</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{user.followers.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(profile.followers_count || 0).toLocaleString()}</div>
                     <div className="text-xs text-muted-foreground">Followers</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold">{user.following}</div>
+                    <div className="text-2xl font-bold">{profile.following_count || 0}</div>
                     <div className="text-xs text-muted-foreground">Following</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <FileText className="w-4 h-4" />
-                    {user.stats.posts} bài viết
+                    {userPosts?.length || 0} bài viết
                   </div>
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    <MessageSquare className="w-4 h-4" />
-                    {user.stats.answers} trả lời
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Eye className="w-4 h-4" />
-                    {(user.stats.views / 1000).toFixed(0)}K lượt xem
-                  </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Heart className="w-4 h-4" />
-                    {(user.stats.likes / 1000).toFixed(1)}K likes
+                    <ShoppingBag className="w-4 h-4" />
+                    {userProducts?.length || 0} sản phẩm
                   </div>
                 </div>
               </div>
@@ -294,81 +307,100 @@ const Profile: React.FC = () => {
             {/* Posts */}
             {activeTab === 'posts' && (
               <div className="space-y-4">
-                {posts.map((post) => (
-                  <article
-                    key={post.id}
-                    className="bg-card rounded-xl border border-border p-5 hover:border-primary/50 transition-colors"
-                  >
-                    <Link to={`/blog/${post.id}`}>
-                      <h3 className="font-semibold text-lg mb-2 hover:text-primary transition-colors">
-                        {post.title}
-                      </h3>
-                    </Link>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {post.excerpt}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-wrap gap-2">
-                        {post.tags.map((tag) => (
-                          <Badge key={tag} variant="tech" className="text-xs">
-                            {tag}
-                          </Badge>
-                        ))}
+                {postsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : userPosts && userPosts.length > 0 ? (
+                  userPosts.map((post) => (
+                    <article
+                      key={post.id}
+                      className="bg-card rounded-xl border border-border p-5 hover:border-primary/50 transition-colors"
+                    >
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <p className="line-clamp-3">{post.content}</p>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-4 h-4" />
-                          {post.views.toLocaleString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-4 h-4" />
-                          {post.likes}
-                        </span>
-                        <span>{post.createdAt}</span>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex flex-wrap gap-2">
+                          {post.tags?.map((tag) => (
+                            <Badge key={tag} variant="tech" className="text-xs">
+                              #{tag}
+                            </Badge>
+                          ))}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Eye className="w-4 h-4" />
+                            {(post.views_count || 0).toLocaleString()}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Heart className="w-4 h-4" />
+                            {post.likes_count || 0}
+                          </span>
+                          <span>{formatTime(post.created_at)}</span>
+                        </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground">
+                    Chưa có bài viết nào
+                  </div>
+                )}
               </div>
             )}
 
             {/* Products */}
             {activeTab === 'products' && (
               <div className="grid sm:grid-cols-2 gap-4">
-                {products.map((product) => (
-                  <Link
-                    key={product.id}
-                    to={`/marketplace/${product.id}`}
-                    className="bg-card rounded-xl border border-border overflow-hidden hover:border-primary/50 transition-colors"
-                  >
-                    <div className="aspect-video bg-muted">
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold mb-2">{product.name}</h3>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className={product.price === 0 ? 'text-reputation font-medium' : 'text-primary font-bold'}>
-                          {formatPrice(product.price)}
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground">
-                          <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                          {product.rating}
-                        </span>
+                {productsLoading ? (
+                  <div className="col-span-2 flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : userProducts && userProducts.length > 0 ? (
+                  userProducts.map((product) => (
+                    <Link
+                      key={product.id}
+                      to={`/marketplace/${product.id}`}
+                      className="bg-card rounded-xl border border-border overflow-hidden hover:border-primary/50 transition-colors"
+                    >
+                      <div className="aspect-video bg-muted flex items-center justify-center">
+                        {product.preview_images && product.preview_images[0] ? (
+                          <img
+                            src={product.preview_images[0]}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ShoppingBag className="w-8 h-8 text-muted-foreground" />
+                        )}
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                      <div className="p-4">
+                        <h3 className="font-semibold mb-2">{product.name}</h3>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className={product.price === 0 ? 'text-reputation font-medium' : 'text-primary font-bold'}>
+                            {formatPrice(product.price)}
+                          </span>
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                            {product.rating || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-12 text-muted-foreground">
+                    Chưa có sản phẩm nào
+                  </div>
+                )}
               </div>
             )}
 
             {/* Badges */}
             {activeTab === 'badges' && (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {user.badges.map((badge, index) => (
+                {badges.map((badge, index) => (
                   <div
                     key={index}
                     className={`bg-card rounded-xl border border-border p-5 text-center ${
@@ -386,6 +418,13 @@ const Profile: React.FC = () => {
                 ))}
               </div>
             )}
+
+            {/* Series placeholder */}
+            {activeTab === 'series' && (
+              <div className="text-center py-12 text-muted-foreground">
+                Chưa có series nào
+              </div>
+            )}
           </div>
 
           {/* Sidebar */}
@@ -397,7 +436,7 @@ const Profile: React.FC = () => {
                 Thành tựu
               </h3>
               <div className="space-y-4">
-                {user.achievements.map((achievement, index) => (
+                {achievements.map((achievement, index) => (
                   <div key={index}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm flex items-center gap-2">
@@ -416,24 +455,23 @@ const Profile: React.FC = () => {
               </div>
             </div>
 
-            {/* Activity */}
+            {/* Activity placeholder */}
             <div className="bg-card rounded-xl border border-border p-5">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Zap className="w-5 h-5 text-accent" />
                 Hoạt động gần đây
               </h3>
-              <div className="space-y-3">
-                {[
-                  { action: 'Đăng bài viết mới', time: '2 giờ trước' },
-                  { action: 'Trả lời câu hỏi', time: '5 giờ trước' },
-                  { action: 'Nhận huy hiệu mới', time: '1 ngày trước' },
-                  { action: 'Like bài viết', time: '2 ngày trước' },
-                ].map((activity, index) => (
-                  <div key={index} className="flex items-center justify-between text-sm">
-                    <span>{activity.action}</span>
-                    <span className="text-muted-foreground">{activity.time}</span>
-                  </div>
-                ))}
+              <div className="space-y-3 text-sm text-muted-foreground">
+                {userPosts && userPosts.length > 0 ? (
+                  userPosts.slice(0, 3).map((post, index) => (
+                    <div key={post.id} className="flex items-center justify-between">
+                      <span>Đăng bài viết mới</span>
+                      <span className="text-xs">{formatTime(post.created_at)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p>Chưa có hoạt động</p>
+                )}
               </div>
             </div>
           </div>
@@ -442,14 +480,5 @@ const Profile: React.FC = () => {
     </Layout>
   );
 };
-
-// Add missing import
-const Layers = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-    <polyline points="2 17 12 22 22 17"/>
-    <polyline points="2 12 12 17 22 12"/>
-  </svg>
-);
 
 export default Profile;

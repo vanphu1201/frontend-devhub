@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Search, 
-  Filter, 
   Star, 
   Download, 
   Eye, 
@@ -16,149 +15,16 @@ import {
   SlidersHorizontal,
   Grid3X3,
   List,
-  Heart
+  Heart,
+  Loader2
 } from 'lucide-react';
+import { useProducts, Product } from '@/hooks/useProducts';
 
-const Marketplace: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [priceRange, setPriceRange] = useState<'all' | 'free' | 'paid'>('all');
-
-  const categories = [
-    { id: 'all', name: 'Tất cả', count: 500 },
-    { id: 'dashboard', name: 'Dashboard', count: 120 },
-    { id: 'landing', name: 'Landing Page', count: 95 },
-    { id: 'ecommerce', name: 'E-commerce', count: 80 },
-    { id: 'admin', name: 'Admin Panel', count: 75 },
-    { id: 'portfolio', name: 'Portfolio', count: 60 },
-    { id: 'blog', name: 'Blog', count: 45 },
-    { id: 'mobile', name: 'Mobile App', count: 35 },
-  ];
-
-  const products = [
-    {
-      id: 1,
-      name: 'SaaS Dashboard Pro',
-      description: 'Template dashboard hoàn chỉnh cho ứng dụng SaaS với Next.js 14, TypeScript và Tailwind CSS',
-      price: 890000,
-      originalPrice: 1200000,
-      rating: 4.9,
-      reviews: 127,
-      downloads: 2340,
-      image: '/placeholder.svg',
-      techStack: ['Next.js', 'TypeScript', 'Tailwind', 'Prisma'],
-      category: 'Dashboard',
-      author: {
-        name: 'DevHub Team',
-        avatar: 'D',
-        verified: true,
-      },
-      isFeatured: true,
-      isNew: false,
-    },
-    {
-      id: 2,
-      name: 'E-commerce Starter Kit',
-      description: 'Bộ khởi đầu hoàn chỉnh cho website bán hàng online với giỏ hàng, thanh toán và quản lý đơn hàng',
-      price: 590000,
-      originalPrice: null,
-      rating: 4.7,
-      reviews: 89,
-      downloads: 1560,
-      image: '/placeholder.svg',
-      techStack: ['React', 'Node.js', 'MongoDB', 'Stripe'],
-      category: 'E-commerce',
-      author: {
-        name: 'Nguyễn Minh Đức',
-        avatar: 'N',
-        verified: true,
-      },
-      isFeatured: false,
-      isNew: true,
-    },
-    {
-      id: 3,
-      name: 'Admin Template Ultimate',
-      description: 'Template admin đa năng với 100+ components, charts, tables và nhiều tính năng khác',
-      price: 690000,
-      originalPrice: 990000,
-      rating: 4.8,
-      reviews: 203,
-      downloads: 3890,
-      image: '/placeholder.svg',
-      techStack: ['Vue.js', 'Vuetify', 'Firebase'],
-      category: 'Admin Panel',
-      author: {
-        name: 'Trần Thị Hương',
-        avatar: 'T',
-        verified: true,
-      },
-      isFeatured: true,
-      isNew: false,
-    },
-    {
-      id: 4,
-      name: 'Portfolio Creative',
-      description: 'Template portfolio sáng tạo với animation mượt mà, dark mode và responsive hoàn hảo',
-      price: 290000,
-      originalPrice: null,
-      rating: 4.6,
-      reviews: 56,
-      downloads: 890,
-      image: '/placeholder.svg',
-      techStack: ['React', 'Framer Motion', 'GSAP'],
-      category: 'Portfolio',
-      author: {
-        name: 'Lê Văn Thành',
-        avatar: 'L',
-        verified: false,
-      },
-      isFeatured: false,
-      isNew: true,
-    },
-    {
-      id: 5,
-      name: 'Blog Platform Template',
-      description: 'Template blog với CMS tích hợp, SEO optimized và hỗ trợ MDX',
-      price: 0,
-      originalPrice: null,
-      rating: 4.5,
-      reviews: 234,
-      downloads: 5670,
-      image: '/placeholder.svg',
-      techStack: ['Next.js', 'MDX', 'Contentlayer'],
-      category: 'Blog',
-      author: {
-        name: 'DevHub Team',
-        avatar: 'D',
-        verified: true,
-      },
-      isFeatured: false,
-      isNew: false,
-    },
-    {
-      id: 6,
-      name: 'Landing Page Builder',
-      description: 'Bộ components landing page với 50+ sections có thể tái sử dụng',
-      price: 450000,
-      originalPrice: 600000,
-      rating: 4.8,
-      reviews: 167,
-      downloads: 2100,
-      image: '/placeholder.svg',
-      techStack: ['React', 'Tailwind', 'Headless UI'],
-      category: 'Landing Page',
-      author: {
-        name: 'Phạm Văn D',
-        avatar: 'P',
-        verified: true,
-      },
-      isFeatured: true,
-      isNew: false,
-    },
-  ];
-
+const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index: number }> = ({ 
+  product, 
+  viewMode, 
+  index 
+}) => {
   const formatPrice = (price: number) => {
     if (price === 0) return 'Miễn phí';
     return new Intl.NumberFormat('vi-VN', {
@@ -167,14 +33,193 @@ const Marketplace: React.FC = () => {
     }).format(price);
   };
 
-  const filteredProducts = products.filter((product) => {
-    if (selectedCategory !== 'all' && product.category.toLowerCase() !== selectedCategory) {
-      return false;
+  const getAuthorInitial = () => {
+    if (product.author?.display_name) return product.author.display_name[0].toUpperCase();
+    if (product.author?.username) return product.author.username[0].toUpperCase();
+    return 'U';
+  };
+
+  const getAuthorName = () => {
+    return product.author?.display_name || product.author?.username || 'Người dùng';
+  };
+
+  const discount = product.original_price 
+    ? Math.round((1 - product.price / product.original_price) * 100) 
+    : 0;
+
+  return (
+    <div
+      className={`group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in ${
+        viewMode === 'list' ? 'flex' : ''
+      }`}
+      style={{ animationDelay: `${index * 0.05}s` }}
+    >
+      {/* Preview Image */}
+      <div className={`relative bg-muted overflow-hidden ${viewMode === 'list' ? 'w-72 flex-shrink-0' : 'aspect-[4/3]'}`}>
+        {product.preview_images && product.preview_images.length > 0 ? (
+          <img
+            src={product.preview_images[0]}
+            alt={product.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+            <Monitor className="w-12 h-12 text-muted-foreground" />
+          </div>
+        )}
+        
+        {product.is_featured && (
+          <Badge variant="gradient" className="absolute top-3 left-3">
+            Featured
+          </Badge>
+        )}
+        {discount > 0 && (
+          <Badge variant="destructive" className="absolute top-3 right-3">
+            -{discount}%
+          </Badge>
+        )}
+        
+        {/* Quick Actions */}
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+          <Button size="sm" variant="secondary" className="gap-1" asChild>
+            <Link to={`/marketplace/${product.id}`}>
+              <Eye className="w-4 h-4" />
+              Preview
+            </Link>
+          </Button>
+        </div>
+
+        {/* Device Preview */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Monitor className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+          <Tablet className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+          <Smartphone className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <Link to={`/marketplace/${product.id}`}>
+            <h3 className="font-semibold group-hover:text-primary transition-colors line-clamp-1">
+              {product.name}
+            </h3>
+          </Link>
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+            <Heart className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+          {product.description}
+        </p>
+
+        <div className="flex items-center gap-2 mb-3">
+          {product.author?.avatar_url ? (
+            <img 
+              src={product.author.avatar_url} 
+              alt={getAuthorName()}
+              className="w-6 h-6 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-xs font-semibold">
+              {getAuthorInitial()}
+            </div>
+          )}
+          <span className="text-sm text-muted-foreground">{getAuthorName()}</span>
+          {product.author?.reputation && product.author.reputation > 1000 && (
+            <Badge variant="secondary" className="text-xs">Verified</Badge>
+          )}
+        </div>
+
+        {product.tech_stack && product.tech_stack.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {product.tech_stack.slice(0, 3).map((tech) => (
+              <Badge key={tech} variant="outline" className="text-xs">
+                {tech}
+              </Badge>
+            ))}
+            {product.tech_stack.length > 3 && (
+              <Badge variant="outline" className="text-xs">
+                +{product.tech_stack.length - 3}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 text-sm mb-4">
+          <span className="flex items-center gap-1 text-yellow-500">
+            <Star className="w-4 h-4 fill-current" />
+            {product.rating || 0}
+          </span>
+          <span className="text-muted-foreground">
+            ({product.reviews_count || 0})
+          </span>
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <Download className="w-3.5 h-3.5" />
+            {(product.downloads_count || 0).toLocaleString()}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div>
+            <span className={`text-lg font-bold ${product.price === 0 ? 'text-reputation' : 'text-primary'}`}>
+              {formatPrice(product.price)}
+            </span>
+            {product.original_price && product.original_price > product.price && (
+              <span className="text-sm text-muted-foreground line-through ml-2">
+                {formatPrice(product.original_price)}
+              </span>
+            )}
+          </div>
+          <Button variant="gradient" size="sm" className="gap-1" asChild>
+            <Link to={`/marketplace/${product.id}`}>
+              <ShoppingCart className="w-4 h-4" />
+              {product.price === 0 ? 'Tải về' : 'Mua ngay'}
+            </Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Marketplace: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [priceRange, setPriceRange] = useState<'all' | 'free' | 'paid'>('all');
+
+  const { data: products, isLoading, error } = useProducts(selectedCategory === 'all' ? undefined : selectedCategory);
+
+  const categories = [
+    { id: 'all', name: 'Tất cả' },
+    { id: 'Dashboard', name: 'Dashboard' },
+    { id: 'Landing Page', name: 'Landing Page' },
+    { id: 'E-commerce', name: 'E-commerce' },
+    { id: 'Admin Panel', name: 'Admin Panel' },
+    { id: 'Portfolio', name: 'Portfolio' },
+    { id: 'Blog', name: 'Blog' },
+    { id: 'Mobile App', name: 'Mobile App' },
+  ];
+
+  // Filter products based on search and price
+  const filteredProducts = products?.filter((product) => {
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesName = product.name.toLowerCase().includes(query);
+      const matchesDesc = product.description.toLowerCase().includes(query);
+      const matchesTech = product.tech_stack?.some(t => t.toLowerCase().includes(query));
+      if (!matchesName && !matchesDesc && !matchesTech) return false;
     }
+    
+    // Price filter
     if (priceRange === 'free' && product.price !== 0) return false;
     if (priceRange === 'paid' && product.price === 0) return false;
+    
     return true;
-  });
+  }) || [];
 
   return (
     <Layout>
@@ -250,7 +295,6 @@ const Marketplace: React.FC = () => {
                     }`}
                   >
                     <span>{cat.name}</span>
-                    <span className="text-xs">{cat.count}</span>
                   </button>
                 ))}
               </nav>
@@ -271,138 +315,45 @@ const Marketplace: React.FC = () => {
               </select>
             </div>
 
-            <div className={`grid gap-6 ${viewMode === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-              {filteredProducts.map((product, index) => (
-                <div
-                  key={product.id}
-                  className={`group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in ${
-                    viewMode === 'list' ? 'flex' : ''
-                  }`}
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                >
-                  {/* Preview Image */}
-                  <div className={`relative bg-muted overflow-hidden ${viewMode === 'list' ? 'w-72 flex-shrink-0' : 'aspect-[4/3]'}`}>
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    
-                    {product.isFeatured && (
-                      <Badge variant="gradient" className="absolute top-3 left-3">
-                        Featured
-                      </Badge>
-                    )}
-                    {product.isNew && (
-                      <Badge variant="info" className="absolute top-3 left-3">
-                        Mới
-                      </Badge>
-                    )}
-                    {product.originalPrice && (
-                      <Badge variant="destructive" className="absolute top-3 right-3">
-                        -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-                      </Badge>
-                    )}
-                    
-                    {/* Quick Actions */}
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <Button size="sm" variant="secondary" className="gap-1" asChild>
-                        <Link to={`/marketplace/${product.id}`}>
-                          <Eye className="w-4 h-4" />
-                          Preview
-                        </Link>
-                      </Button>
-                    </div>
-
-                    {/* Device Preview */}
-                    <div className="absolute bottom-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Monitor className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                      <Tablet className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                      <Smartphone className="w-3.5 h-3.5 text-muted-foreground hover:text-primary cursor-pointer" />
-                    </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className={`p-5 ${viewMode === 'list' ? 'flex-1' : ''}`}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <Link to={`/marketplace/${product.id}`}>
-                        <h3 className="font-semibold group-hover:text-primary transition-colors line-clamp-1">
-                          {product.name}
-                        </h3>
-                      </Link>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                        <Heart className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-                      {product.description}
-                    </p>
-
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground text-xs font-semibold">
-                        {product.author.avatar}
-                      </div>
-                      <span className="text-sm text-muted-foreground">{product.author.name}</span>
-                      {product.author.verified && (
-                        <Badge variant="secondary" className="text-xs">Verified</Badge>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {product.techStack.slice(0, 3).map((tech) => (
-                        <Badge key={tech} variant="outline" className="text-xs">
-                          {tech}
-                        </Badge>
-                      ))}
-                      {product.techStack.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{product.techStack.length - 3}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3 text-sm mb-4">
-                      <span className="flex items-center gap-1 text-yellow-500">
-                        <Star className="w-4 h-4 fill-current" />
-                        {product.rating}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({product.reviews})
-                      </span>
-                      <span className="flex items-center gap-1 text-muted-foreground">
-                        <Download className="w-3.5 h-3.5" />
-                        {product.downloads.toLocaleString()}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className={`text-lg font-bold ${product.price === 0 ? 'text-reputation' : 'text-primary'}`}>
-                          {formatPrice(product.price)}
-                        </span>
-                        {product.originalPrice && (
-                          <span className="text-sm text-muted-foreground line-through ml-2">
-                            {formatPrice(product.originalPrice)}
-                          </span>
-                        )}
-                      </div>
-                      <Button variant="gradient" size="sm" className="gap-1">
-                        <ShoppingCart className="w-4 h-4" />
-                        {product.price === 0 ? 'Tải về' : 'Mua ngay'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : error ? (
+              <div className="text-center py-12 text-destructive">
+                Lỗi tải sản phẩm: {error.message}
+              </div>
+            ) : filteredProducts.length > 0 ? (
+              <div className={`grid gap-6 ${viewMode === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
+                {filteredProducts.map((product, index) => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    viewMode={viewMode} 
+                    index={index} 
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg mb-2">Chưa có sản phẩm nào</p>
+                <p className="text-sm">
+                  {searchQuery 
+                    ? 'Không tìm thấy sản phẩm phù hợp với tìm kiếm của bạn'
+                    : 'Hãy là người đầu tiên đăng bán sản phẩm!'
+                  }
+                </p>
+              </div>
+            )}
 
             {/* Load More */}
-            <div className="text-center mt-8">
-              <Button variant="outline" size="lg">
-                Xem thêm sản phẩm
-              </Button>
-            </div>
+            {filteredProducts.length > 0 && (
+              <div className="text-center mt-8">
+                <Button variant="outline" size="lg">
+                  Xem thêm sản phẩm
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
