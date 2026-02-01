@@ -3,135 +3,201 @@ import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Filter, 
-  BookOpen, 
-  Clock, 
-  Eye, 
-  Heart, 
+import {
+  Search,
+  Filter,
+  BookOpen,
+  Clock,
+  Eye,
+  Heart,
   MessageSquare,
   ChevronRight,
   Bookmark,
   TrendingUp,
   Calendar,
-  User
+  User,
+  ArrowUpDown,
+  Check,
+  Loader2
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
+
+import {
+  useBlogPosts,
+  useFeaturedBlogPosts,
+  useSeries,
+  BlogPost as IBlogPost,
+  Series as ISeries,
+  useLikeBlogPost,
+  useUnlikeBlogPost,
+  useIsBlogPostLiked,
+  useBookmarkBlogPost,
+  useUnbookmarkBlogPost,
+  useIsBlogPostBookmarked
+} from '@/hooks/useBlogPosts';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
+
+const BlogCard: React.FC<{ post: IBlogPost }> = ({ post }) => {
+  const { user } = useAuth();
+  const { data: isLiked } = useIsBlogPostLiked(post.id);
+  const { data: isBookmarked } = useIsBlogPostBookmarked(post.id);
+
+  const likePost = useLikeBlogPost();
+  const unlikePost = useUnlikeBlogPost();
+  const bookmarkPost = useBookmarkBlogPost();
+  const unbookmarkPost = useUnbookmarkBlogPost();
+
+  const handleLike = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để thích bài viết');
+      return;
+    }
+    if (isLiked) {
+      unlikePost.mutate(post.id);
+    } else {
+      likePost.mutate(post.id);
+    }
+  };
+
+  const handleBookmark = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu bài viết');
+      return;
+    }
+    if (isBookmarked) {
+      unbookmarkPost.mutate(post.id);
+    } else {
+      bookmarkPost.mutate(post.id);
+    }
+  };
+
+  return (
+    <article
+      className="group bg-card rounded-2xl border border-border overflow-hidden card-hover"
+    >
+      {/* Thumbnail */}
+      <Link to={`/blog/${post.slug}`} className="block">
+        <div className="relative aspect-[2/1] bg-muted overflow-hidden">
+          <img
+            src={post.thumbnail_url || '/placeholder.svg'}
+            alt={post.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+          {post.is_featured && (
+            <Badge variant="gradient" className="absolute top-3 left-3">
+              Featured
+            </Badge>
+          )}
+          <Badge variant="secondary" className="absolute top-3 right-3">
+            {post.category}
+          </Badge>
+        </div>
+      </Link>
+
+      {/* Content */}
+      <div className="p-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-sm">
+            {post.author?.display_name?.[0].toUpperCase() || 'U'}
+          </div>
+          <div className="flex-1">
+            <span className="text-sm font-medium">{post.author?.display_name || 'Người dùng'}</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="w-3 h-3" />
+              {post.created_at ? new Date(post.created_at).toLocaleDateString('vi-VN') : 'Mới'}
+              <span>•</span>
+              <Clock className="w-3 h-3" />
+              {post.read_time_minutes} phút
+            </div>
+          </div>
+        </div>
+
+        <Link to={`/blog/${post.slug}`}>
+          <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2 h-14">
+            {post.title}
+          </h3>
+        </Link>
+        <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">
+          {post.excerpt}
+        </p>
+
+        <div className="flex flex-wrap gap-2 mb-4 overflow-hidden h-6">
+          {(post.tags || []).slice(0, 3).map((tag: string) => (
+            <Badge key={tag} variant="tech" className="text-[10px] px-2">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground pt-4 border-t border-border/50">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5 transition-colors hover:text-primary">
+              <Eye className="w-4 h-4" />
+              {(post.views_count || 0).toLocaleString()}
+            </span>
+            <button
+              onClick={handleLike}
+              className={`flex items-center gap-1.5 transition-colors ${isLiked ? 'text-primary' : 'hover:text-primary'}`}
+              disabled={likePost.isPending || unlikePost.isPending}
+            >
+              <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
+              {(post.likes_count || 0).toLocaleString()}
+            </button>
+            <span className="flex items-center gap-1.5 transition-colors hover:text-primary">
+              <MessageSquare className="w-4 h-4" />
+              {(post.comments_count || 0).toLocaleString()}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`h-8 w-8 rounded-lg ${isBookmarked ? 'text-primary bg-primary/10' : 'hover:text-primary hover:bg-primary/5'}`}
+            onClick={handleBookmark}
+            disabled={bookmarkPost.isPending || unbookmarkPost.isPending}
+          >
+            <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
+          </Button>
+        </div>
+      </div>
+    </article>
+  );
+};
 
 const Blog: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [sortBy, setSortBy] = useState('newest');
+
+  const { data: blogPosts, isLoading: postsLoading } = useBlogPosts(selectedCategory, sortBy);
+  const { data: featuredPosts, isLoading: featuredLoading } = useFeaturedBlogPosts();
+  const { data: series, isLoading: seriesLoading } = useSeries();
 
   const categories = [
-    { id: 'all', name: 'Tất cả', count: 1234 },
-    { id: 'frontend', name: 'Frontend', count: 456 },
-    { id: 'backend', name: 'Backend', count: 389 },
-    { id: 'devops', name: 'DevOps', count: 234 },
-    { id: 'mobile', name: 'Mobile', count: 178 },
-    { id: 'ai-ml', name: 'AI/ML', count: 145 },
+    { id: 'all', name: 'Tất cả' },
+    { id: 'frontend', name: 'Frontend' },
+    { id: 'backend', name: 'Backend' },
+    { id: 'devops', name: 'DevOps' },
+    { id: 'mobile', name: 'Mobile' },
+    { id: 'ai-ml', name: 'AI/ML' },
   ];
 
-  const featuredSeries = [
-    {
-      id: 1,
-      title: 'React từ Zero đến Hero',
-      description: 'Khóa học React hoàn chỉnh từ cơ bản đến nâng cao',
-      author: 'Nguyễn Minh Đức',
-      totalParts: 15,
-      completedParts: 12,
-      thumbnail: '/placeholder.svg',
-      tags: ['React', 'JavaScript', 'Frontend'],
-    },
-    {
-      id: 2,
-      title: 'Docker & Kubernetes Masterclass',
-      description: 'Container hóa ứng dụng và orchestration với K8s',
-      author: 'Lê Văn Thành',
-      totalParts: 10,
-      completedParts: 10,
-      thumbnail: '/placeholder.svg',
-      tags: ['Docker', 'Kubernetes', 'DevOps'],
-    },
-  ];
-
-  const blogPosts = [
-    {
-      id: 1,
-      title: 'Hướng dẫn xây dựng REST API với Node.js và Express từ A-Z',
-      excerpt: 'Bài viết chi tiết về cách thiết kế và triển khai REST API chuyên nghiệp với Node.js, Express, và MongoDB. Bao gồm authentication, validation, error handling...',
-      author: {
-        name: 'Nguyễn Văn A',
-        avatar: 'N',
-        reputation: 2500,
-      },
-      thumbnail: '/placeholder.svg',
-      category: 'Backend',
-      tags: ['Node.js', 'Express', 'API', 'MongoDB'],
-      createdAt: '15/01/2024',
-      readTime: '12 phút',
-      views: 15420,
-      likes: 892,
-      comments: 156,
-      isFeatured: true,
-    },
-    {
-      id: 2,
-      title: 'React 19: Những tính năng mới đáng chú ý',
-      excerpt: 'Tổng hợp các tính năng mới trong React 19 và cách áp dụng vào dự án thực tế. Server Components, Actions, và nhiều hơn nữa...',
-      author: {
-        name: 'Trần Thị B',
-        avatar: 'T',
-        reputation: 1800,
-      },
-      thumbnail: '/placeholder.svg',
-      category: 'Frontend',
-      tags: ['React', 'JavaScript', 'Frontend'],
-      createdAt: '14/01/2024',
-      readTime: '8 phút',
-      views: 12300,
-      likes: 756,
-      comments: 98,
-      isFeatured: false,
-    },
-    {
-      id: 3,
-      title: 'Tối ưu performance cho ứng dụng Next.js',
-      excerpt: 'Các kỹ thuật tối ưu hiệu suất cho Next.js application: Image optimization, code splitting, caching strategies...',
-      author: {
-        name: 'Lê Văn C',
-        avatar: 'L',
-        reputation: 3200,
-      },
-      thumbnail: '/placeholder.svg',
-      category: 'Frontend',
-      tags: ['Next.js', 'Performance', 'SEO'],
-      createdAt: '13/01/2024',
-      readTime: '15 phút',
-      views: 9800,
-      likes: 543,
-      comments: 67,
-      isFeatured: true,
-    },
-    {
-      id: 4,
-      title: 'Machine Learning cơ bản với Python và Scikit-learn',
-      excerpt: 'Giới thiệu về Machine Learning và cách triển khai các mô hình cơ bản với Python và thư viện Scikit-learn...',
-      author: {
-        name: 'Phạm Văn D',
-        avatar: 'P',
-        reputation: 2100,
-      },
-      thumbnail: '/placeholder.svg',
-      category: 'AI/ML',
-      tags: ['Python', 'Machine Learning', 'Scikit-learn'],
-      createdAt: '12/01/2024',
-      readTime: '20 phút',
-      views: 7650,
-      likes: 423,
-      comments: 45,
-      isFeatured: false,
-    },
-  ];
+  const filteredPosts = (blogPosts || []).filter(post =>
+    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (post.tags || []).some((tag: string) => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
   return (
     <Layout>
@@ -153,14 +219,46 @@ const Blog: React.FC = () => {
               placeholder="Tìm kiếm bài viết..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all shadow-sm"
             />
           </div>
-          <Button variant="outline" className="gap-2">
-            <Filter className="w-4 h-4" />
-            Bộ lọc
-          </Button>
-          <Button variant="gradient" className="gap-2">
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 h-[46px] rounded-lg">
+                <Filter className="w-4 h-4" />
+                Bộ lọc
+                <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Sắp xếp theo</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => setSortBy('newest')}
+                className="flex items-center justify-between"
+              >
+                Mới nhất
+                {sortBy === 'newest' && <Check className="w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('most_viewed')}
+                className="flex items-center justify-between"
+              >
+                Xem nhiều nhất
+                {sortBy === 'most_viewed' && <Check className="w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setSortBy('most_liked')}
+                className="flex items-center justify-between"
+              >
+                Yêu thích nhất
+                {sortBy === 'most_liked' && <Check className="w-4 h-4 text-primary" />}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button variant="gradient" className="gap-2 h-[46px] rounded-lg">
             <BookOpen className="w-4 h-4" />
             Viết bài mới
           </Button>
@@ -172,14 +270,12 @@ const Blog: React.FC = () => {
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                selectedCategory === cat.id
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-muted/80 text-foreground'
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedCategory === cat.id
+                ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+                : 'bg-muted hover:bg-muted/80 text-foreground'
+                }`}
             >
               {cat.name}
-              <span className="ml-2 text-xs opacity-70">({cat.count})</span>
             </button>
           ))}
         </div>
@@ -191,47 +287,47 @@ const Blog: React.FC = () => {
               <TrendingUp className="w-5 h-5 text-primary" />
               <h2 className="text-xl font-semibold">Series nổi bật</h2>
             </div>
-            <Button variant="ghost" size="sm" className="gap-1">
+            <Button variant="ghost" size="sm" className="gap-1 rounded-lg">
               Xem tất cả <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
-            {featuredSeries.map((series) => (
+            {seriesLoading ? (
+              <div className="col-span-2 text-center py-12 flex flex-col items-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Đang tải series...</p>
+              </div>
+            ) : series?.length === 0 ? (
+              <div className="col-span-2 text-center py-20 bg-muted/20 rounded-2xl border border-dashed">
+                <p className="text-muted-foreground">Chưa có series nào nổi bật</p>
+              </div>
+            ) : series?.map((item) => (
               <Link
-                key={series.id}
-                to={`/blog/series/${series.id}`}
-                className="group bg-card rounded-2xl border border-border overflow-hidden card-hover"
+                key={item.id}
+                to={`/blog/series/${item.id}`}
+                className="group bg-card rounded-2xl border border-border overflow-hidden card-hover shadow-sm"
               >
-                <div className="flex">
-                  <div className="w-1/3 aspect-square bg-muted">
+                <div className="flex h-full">
+                  <div className="w-1/3 aspect-square bg-muted flex-shrink-0">
                     <img
-                      src={series.thumbnail}
-                      alt={series.title}
-                      className="w-full h-full object-cover"
+                      src={item.thumbnail_url || '/placeholder.svg'}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   </div>
-                  <div className="flex-1 p-5">
-                    <Badge variant="gradient" className="mb-2">Series</Badge>
-                    <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
-                      {series.title}
+                  <div className="flex-1 p-5 flex flex-col justify-center">
+                    <Badge variant="gradient" className="mb-2 w-fit">Series</Badge>
+                    <h3 className="font-bold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-1">
+                      {item.title}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                      {series.description}
+                      {item.description}
                     </p>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                      <User className="w-4 h-4" />
-                      {series.author}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
-                          style={{ width: `${(series.completedParts / series.totalParts) * 100}%` }}
-                        />
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-primary text-[10px]">
+                        {item.author?.display_name?.[0].toUpperCase() || 'A'}
                       </div>
-                      <span className="text-xs text-muted-foreground">
-                        {series.completedParts}/{series.totalParts}
-                      </span>
+                      {item.author?.display_name || 'Người dùng'}
                     </div>
                   </div>
                 </div>
@@ -245,94 +341,29 @@ const Blog: React.FC = () => {
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Bài viết mới nhất</h2>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-            {blogPosts.map((post) => (
-              <article
-                key={post.id}
-                className="group bg-card rounded-2xl border border-border overflow-hidden card-hover"
-              >
-                {/* Thumbnail */}
-                <div className="relative aspect-[2/1] bg-muted overflow-hidden">
-                  <img
-                    src={post.thumbnail}
-                    alt={post.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {post.isFeatured && (
-                    <Badge variant="gradient" className="absolute top-3 left-3">
-                      Featured
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="absolute top-3 right-3">
-                    {post.category}
-                  </Badge>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-sm">
-                      {post.author.avatar}
-                    </div>
-                    <div className="flex-1">
-                      <span className="text-sm font-medium">{post.author.name}</span>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Calendar className="w-3 h-3" />
-                        {post.createdAt}
-                        <span>•</span>
-                        <Clock className="w-3 h-3" />
-                        {post.readTime}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link to={`/blog/${post.id}`}>
-                    <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors line-clamp-2">
-                      {post.title}
-                    </h3>
-                  </Link>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
-                    {post.excerpt}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {post.tags.slice(0, 3).map((tag) => (
-                      <Badge key={tag} variant="tech" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <div className="flex items-center gap-4">
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-4 h-4" />
-                        {post.views.toLocaleString()}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Heart className="w-4 h-4" />
-                        {post.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare className="w-4 h-4" />
-                        {post.comments}
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Bookmark className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </article>
+          <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8">
+            {postsLoading ? (
+              <div className="col-span-2 text-center py-20 flex flex-col items-center gap-3">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Đang tải bài viết...</p>
+              </div>
+            ) : filteredPosts.length === 0 ? (
+              <div className="col-span-2 text-center py-20 bg-muted/20 rounded-2xl border border-dashed">
+                <p className="text-muted-foreground">Không tìm thấy bài viết nào</p>
+              </div>
+            ) : filteredPosts.map((post) => (
+              <BlogCard key={post.id} post={post} />
             ))}
           </div>
 
           {/* Load More */}
-          <div className="text-center mt-8">
-            <Button variant="outline" size="lg">
-              Xem thêm bài viết
-            </Button>
-          </div>
+          {filteredPosts.length > 0 && (
+            <div className="text-center mt-12">
+              <Button variant="outline" size="lg" className="rounded-xl px-12 h-12 font-bold hover:bg-primary hover:text-primary-foreground transition-all">
+                Xem thêm bài viết
+              </Button>
+            </div>
+          )}
         </section>
       </div>
     </Layout>
