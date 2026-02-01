@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Send, 
-  Image, 
-  Code, 
-  Hash, 
+import {
+  Send,
+  Image,
+  Code,
+  Hash,
   AtSign,
   Heart,
   MessageSquare,
@@ -18,13 +18,48 @@ import {
   Clock,
   Flame,
   Eye,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { usePosts, useCreatePost, useLikePost, useUnlikePost, useIsPostLiked, Post } from '@/hooks/usePosts';
+import { usePosts, useCreatePost, useLikePost, useUnlikePost, useIsPostLiked, useUploadPostImage, Post } from '@/hooks/usePosts';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
+import CodeBlock from '@/components/ui/CodeBlock';
+
+const renderContent = (content: string) => {
+  // Regex to find code blocks: ```[language]\n[code]```
+  const parts = content.split(/(```[\s\S]*?```)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith('```') && part.endsWith('```')) {
+      // Extract language and code
+      const innerContent = part.slice(3, -3).trim();
+      const firstNewLineIndex = innerContent.indexOf('\n');
+
+      let language = '';
+      let code = innerContent;
+
+      if (firstNewLineIndex !== -1) {
+        const possibleLanguage = innerContent.slice(0, firstNewLineIndex).trim();
+        // Basic check if it's a language name or just part of the code
+        if (possibleLanguage.length < 20 && !possibleLanguage.includes(' ')) {
+          language = possibleLanguage;
+          code = innerContent.slice(firstNewLineIndex + 1).trim();
+        }
+      }
+
+      return <CodeBlock key={index} code={code} language={language} />;
+    }
+
+    return (
+      <div key={index} className="whitespace-pre-wrap mb-2 last:mb-0">
+        {part}
+      </div>
+    );
+  });
+};
 
 const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const { user } = useAuth();
@@ -63,30 +98,30 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   };
 
   return (
-    <article className="bg-card rounded-2xl border border-border overflow-hidden hover:border-primary/50 transition-colors">
+    <article className="bg-card rounded-2xl border border-border overflow-hidden hover:border-primary/50 transition-colors shadow-sm">
       {/* Post Header */}
       <div className="p-6 pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
             {post.author?.avatar_url ? (
-              <img 
-                src={post.author.avatar_url} 
+              <img
+                src={post.author.avatar_url}
                 alt={getAuthorName()}
-                className="w-12 h-12 rounded-full object-cover"
+                className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-lg">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-lg shadow-inner">
                 {getInitial()}
               </div>
             )}
             <div>
               <div className="flex items-center gap-2">
-                <Link to={`/profile/${post.user_id}`} className="font-semibold hover:text-primary">
+                <Link to={`/profile/${post.user_id}`} className="font-semibold hover:text-primary transition-colors">
                   {getAuthorName()}
                 </Link>
                 {post.author?.reputation && post.author.reputation > 1000 && (
-                  <Badge variant="gold" className="text-xs">
-                    ⭐ {Math.floor(post.author.reputation / 1000)}K RP
+                  <Badge variant="gold" className="text-[10px] h-5">
+                    ⭐ {(post.author.reputation / 1000).toFixed(1)}K RP
                   </Badge>
                 )}
               </div>
@@ -102,7 +137,7 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
             <MoreHorizontal className="w-5 h-5" />
           </Button>
         </div>
@@ -110,9 +145,18 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
       {/* Post Content */}
       <div className="px-6 pb-4">
-        <div className="prose prose-sm dark:prose-invert max-w-none">
-          <div className="whitespace-pre-wrap">{post.content}</div>
+        <div className="prose prose-sm dark:prose-invert max-w-none text-[15px] leading-relaxed">
+          {renderContent(post.content)}
         </div>
+        {post.image_url && (
+          <div className="mt-4 rounded-xl overflow-hidden border border-border">
+            <img
+              src={post.image_url}
+              alt="Post content"
+              className="w-full h-auto object-cover max-h-[500px]"
+            />
+          </div>
+        )}
         {post.tags && post.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mt-4">
             {post.tags.map((tag) => (
@@ -127,9 +171,9 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       {/* Post Actions */}
       <div className="px-6 py-4 border-t border-border bg-muted/30 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className={`gap-2 ${isLiked ? 'text-red-500' : ''}`}
             onClick={handleLike}
             disabled={likePost.isPending || unlikePost.isPending}
@@ -158,28 +202,97 @@ const Feed: React.FC = () => {
   const { user } = useAuth();
   const [postContent, setPostContent] = useState('');
   const [activeTab, setActiveTab] = useState<'trending' | 'latest' | 'following'>('latest');
-  
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const { data: posts, isLoading, error } = usePosts(activeTab);
   const createPost = useCreatePost();
+  const uploadImage = useUploadPostImage();
 
-  const handleCreatePost = () => {
+  const handleCreatePost = async () => {
     if (!user) {
       toast.error('Vui lòng đăng nhập để đăng bài');
       return;
     }
-    if (!postContent.trim()) {
-      toast.error('Vui lòng nhập nội dung bài viết');
+    if (!postContent.trim() && !selectedImage) {
+      toast.error('Vui lòng nhập nội dung bài viết hoặc thêm ảnh');
       return;
     }
-    
-    // Extract hashtags from content
-    const tags = postContent.match(/#(\w+)/g)?.map(tag => tag.slice(1)) || [];
-    
-    createPost.mutate({ content: postContent, tags }, {
-      onSuccess: () => {
-        setPostContent('');
+
+    setIsSubmitting(true);
+    try {
+      let imageUrl = null;
+      if (selectedImage) {
+        imageUrl = await uploadImage.mutateAsync(selectedImage);
       }
-    });
+
+      // Extract hashtags from content
+      const tags = postContent.match(/#(\w+)/g)?.map(tag => tag.slice(1)) || [];
+
+      createPost.mutate({ content: postContent, tags, image_url: imageUrl }, {
+        onSuccess: () => {
+          setPostContent('');
+          setSelectedImage(null);
+          setImagePreview(null);
+        }
+      });
+    } catch (err) {
+      // Error handled by mutation toast
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Kích thước ảnh không được vượt quá 5MB');
+        return;
+      }
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const insertFormat = (format: string) => {
+    const textarea = document.getElementById('post-textarea') as HTMLTextAreaElement;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const before = text.substring(0, start);
+    const after = text.substring(end, text.length);
+
+    let newText = '';
+    let newCursorPos = start;
+
+    switch (format) {
+      case 'code':
+        newText = before + '```\n\n```' + after;
+        newCursorPos = start + 4;
+        break;
+      case 'hash':
+        newText = before + '#' + after;
+        newCursorPos = start + 1;
+        break;
+      case 'at':
+        newText = before + '@' + after;
+        newCursorPos = start + 1;
+        break;
+    }
+
+    setPostContent(newText);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
   const trendingTopics = [
@@ -203,50 +316,102 @@ const Feed: React.FC = () => {
           {/* Main Feed */}
           <div className="space-y-6">
             {/* Create Post */}
-            <div className="bg-card rounded-2xl border border-border p-6">
+            <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
               <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold flex-shrink-0">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg flex-shrink-0 shadow-lg">
                   {getInitial()}
                 </div>
                 <div className="flex-1">
                   <textarea
+                    id="post-textarea"
                     value={postContent}
                     onChange={(e) => setPostContent(e.target.value)}
                     placeholder={user ? "Chia sẻ kiến thức, đặt câu hỏi hoặc viết code..." : "Đăng nhập để chia sẻ..."}
-                    className="w-full min-h-[100px] bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground"
+                    className="w-full min-h-[120px] bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground text-lg leading-relaxed pt-2"
                     disabled={!user}
                   />
-                  <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
-                    <div className="flex items-center gap-2">
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                        <Image className="w-5 h-5" />
+
+                  {imagePreview && (
+                    <div className="relative mt-4 rounded-xl overflow-hidden border border-border group animate-fade-in">
+                      <img src={imagePreview} alt="Preview" className="w-full h-64 object-cover" />
+                      <button
+                        onClick={() => { setSelectedImage(null); setImagePreview(null); }}
+                        className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-destructive hover:text-white transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Live Preview for Code/Formatting */}
+                  {postContent.includes('```') && (
+                    <div className="mt-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-2">Xem trước bài đăng</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-[15px] leading-relaxed opacity-80">
+                        {renderContent(postContent)}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-6 border-t border-border/50 mt-4 gap-4">
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="file"
+                        id="image-input"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => document.getElementById('image-input')?.click()}
+                      >
+                        <Image className="w-6 h-6" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                        <Code className="w-5 h-5" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => insertFormat('code')}
+                      >
+                        <Code className="w-6 h-6" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                        <Hash className="w-5 h-5" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => insertFormat('hash')}
+                      >
+                        <Hash className="w-6 h-6" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
-                        <AtSign className="w-5 h-5" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                        onClick={() => insertFormat('at')}
+                      >
+                        <AtSign className="w-6 h-6" />
                       </Button>
                     </div>
+
                     {user ? (
-                      <Button 
-                        variant="gradient" 
-                        className="gap-2" 
+                      <Button
+                        variant="gradient"
+                        className="gap-2 px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         onClick={handleCreatePost}
-                        disabled={createPost.isPending || !postContent.trim()}
+                        disabled={isSubmitting || createPost.isPending || (!postContent.trim() && !selectedImage)}
                       >
-                        {createPost.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                        {isSubmitting || createPost.isPending ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
                         ) : (
-                          <Send className="w-4 h-4" />
+                          <Send className="w-5 h-5" />
                         )}
-                        Đăng bài
+                        <span className="text-base font-semibold">Đăng bài</span>
                       </Button>
                     ) : (
-                      <Button variant="gradient" asChild>
+                      <Button variant="gradient" asChild className="rounded-xl px-8">
                         <Link to="/login">Đăng nhập</Link>
                       </Button>
                     )}
@@ -256,7 +421,7 @@ const Feed: React.FC = () => {
             </div>
 
             {/* Feed Tabs */}
-            <div className="flex items-center gap-2 bg-card rounded-xl border border-border p-1">
+            <div className="flex items-center gap-2 bg-card rounded-2xl border border-border p-1.5 shadow-sm">
               {[
                 { id: 'trending', label: 'Xu hướng', icon: Flame },
                 { id: 'latest', label: 'Mới nhất', icon: Clock },
@@ -265,13 +430,12 @@ const Feed: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all ${activeTab === tab.id
+                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20 translate-y-[-1px]'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    }`}
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'animate-pulse' : ''}`} />
                   {tab.label}
                 </button>
               ))}
@@ -295,7 +459,7 @@ const Feed: React.FC = () => {
                 <div className="text-center py-12 text-muted-foreground">
                   <p className="text-lg mb-2">Chưa có bài viết nào</p>
                   <p className="text-sm">
-                    {activeTab === 'following' 
+                    {activeTab === 'following'
                       ? 'Hãy theo dõi ai đó để xem bài viết của họ!'
                       : 'Hãy là người đầu tiên chia sẻ!'
                     }

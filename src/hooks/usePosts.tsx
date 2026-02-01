@@ -12,6 +12,7 @@ export interface Post {
   comments_count: number;
   shares_count: number;
   views_count: number;
+  image_url?: string | null;
   is_published: boolean;
   created_at: string;
   updated_at: string;
@@ -27,6 +28,7 @@ export interface Post {
 export interface CreatePostInput {
   content: string;
   tags?: string[];
+  image_url?: string | null;
 }
 
 // Helper function to fetch profile for a user
@@ -61,7 +63,7 @@ export const usePosts = (filter: 'trending' | 'latest' | 'following' = 'latest')
           .eq('follower_id', user.id);
 
         const followingIds = follows?.map(f => f.following_id) || [];
-        
+
         if (followingIds.length > 0) {
           query = query.in('user_id', followingIds);
         } else {
@@ -113,13 +115,19 @@ export const useCreatePost = () => {
     mutationFn: async (input: CreatePostInput) => {
       if (!user?.id) throw new Error('Not authenticated');
 
+      const insertData: any = {
+        user_id: user.id,
+        content: input.content,
+        tags: input.tags || [],
+      };
+
+      if (input.image_url) {
+        insertData.image_url = input.image_url;
+      }
+
       const { data, error } = await supabase
         .from('posts')
-        .insert({
-          user_id: user.id,
-          content: input.content,
-          tags: input.tags || [],
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -178,7 +186,7 @@ export const useLikePost = () => {
         .select('likes_count')
         .eq('id', postId)
         .single();
-      
+
       if (post) {
         await supabase
           .from('posts')
@@ -222,7 +230,7 @@ export const useUnlikePost = () => {
         .select('likes_count')
         .eq('id', postId)
         .single();
-      
+
       if (post && post.likes_count > 0) {
         await supabase
           .from('posts')
@@ -256,5 +264,30 @@ export const useIsPostLiked = (postId: string) => {
       return !!data;
     },
     enabled: !!user?.id && !!postId,
+  });
+};
+
+export const useUploadPostImage = () => {
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from('posts')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('posts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    },
+    onError: (error) => {
+      toast.error('Lỗi tải ảnh: ' + error.message);
+    },
   });
 };
