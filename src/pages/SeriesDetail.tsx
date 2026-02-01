@@ -78,7 +78,7 @@ const SeriesDetail: React.FC = () => {
                                 {series.description}
                             </p>
 
-                            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground mb-8">
+                            <div className="flex flex-wrap items-center gap-6 text-sm text-muted-foreground mb-6">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                                         <User className="w-4 h-4" />
@@ -94,6 +94,25 @@ const SeriesDetail: React.FC = () => {
                                 <div className="flex items-center gap-2">
                                     <Calendar className="w-4 h-4" />
                                     <span>Cập nhật {new Date(series.updated_at).toLocaleDateString('vi-VN')}</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-1">Chuyên mục</p>
+                                    <p className="text-sm font-bold capitalize">{series.category || 'Chung'}</p>
+                                </div>
+                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-1">Mức độ</p>
+                                    <p className="text-sm font-bold capitalize">{series.difficulty || 'Cơ bản'}</p>
+                                </div>
+                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-1">Thời gian</p>
+                                    <p className="text-sm font-bold">{series.estimated_duration || 'Chưa rõ'}</p>
+                                </div>
+                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
+                                    <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-1">Đối tượng</p>
+                                    <p className="text-sm font-bold truncate">{series.target_audience || 'Mọi người'}</p>
                                 </div>
                             </div>
 

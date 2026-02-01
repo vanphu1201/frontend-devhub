@@ -59,6 +59,7 @@ export type Database = {
           series_id: string | null
           series_order: number | null
           slug: string
+          status: string | null
           tags: string[] | null
           thumbnail_url: string | null
           title: string
@@ -80,6 +81,7 @@ export type Database = {
           series_id?: string | null
           series_order?: number | null
           slug: string
+          status?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           title: string
@@ -101,6 +103,7 @@ export type Database = {
           series_id?: string | null
           series_order?: number | null
           slug?: string
+          status?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
           title?: string
@@ -706,6 +709,48 @@ export type Database = {
           type?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      series: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          slug: string
+          description: string | null
+          thumbnail_url: string | null
+          tags: string[] | null
+          is_published: boolean | null
+          status: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          slug: string
+          description?: string | null
+          thumbnail_url?: string | null
+          tags?: string[] | null
+          is_published?: boolean | null
+          status?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          slug?: string
+          description?: string | null
+          thumbnail_url?: string | null
+          tags?: string[] | null
+          is_published?: boolean | null
+          status?: string | null
+          created_at?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

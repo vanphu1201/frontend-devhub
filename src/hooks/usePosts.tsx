@@ -48,10 +48,14 @@ const fetchProfile = async (userId: string) => {
       .eq('id', userId)
       .single();
 
-    if (error) return undefined;
+    if (error) {
+      console.warn('Profile not found for user:', userId);
+      return null;
+    }
     return data;
   } catch (err) {
-    return undefined;
+    console.error('Error in fetchProfile:', err);
+    return null;
   }
 };
 

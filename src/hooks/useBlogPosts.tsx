@@ -14,6 +14,7 @@ export interface BlogPost {
   category: string | null;
   tags: string[];
   is_published: boolean;
+  status: 'pending' | 'approved' | 'rejected';
   is_featured: boolean;
   series_id: string | null;
   series_order: number | null;
@@ -35,12 +36,21 @@ export interface BlogPost {
 
 // Helper function to fetch profile for a user
 async function fetchProfile(userId: string) {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, avatar_url, reputation')
-    .eq('id', userId)
-    .single();
-  return data;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url, reputation')
+      .eq('id', userId)
+      .single();
+    if (error) {
+      console.warn('Profile not found for user:', userId);
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('Error in fetchProfile:', err);
+    return null;
+  }
 }
 
 export interface Series {
@@ -49,9 +59,14 @@ export interface Series {
   title: string;
   slug: string;
   description: string | null;
+  category: string | null;
+  difficulty: string | null;
+  target_audience: string | null;
+  estimated_duration: string | null;
   thumbnail_url: string | null;
   tags: string[];
   is_published: boolean;
+  status: 'pending' | 'approved' | 'rejected';
   created_at: string;
   updated_at: string;
   author?: {
@@ -110,7 +125,7 @@ export const useBlogPosts = (category?: string, sortBy: string = 'newest') => {
   });
 };
 
-export const useAdminBlogPosts = () => {
+export const useAdminBlogPosts = (options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['blog_posts', 'admin'],
     queryFn: async () => {
@@ -130,6 +145,7 @@ export const useAdminBlogPosts = () => {
 
       return postsWithAuthors;
     },
+    enabled: options?.enabled,
   });
 };
 
@@ -161,6 +177,7 @@ export const useSeries = () => {
       const { data, error } = await supabase
         .from('series' as any)
         .select('*')
+        .eq('status', 'approved') // Only show approved series to public
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -173,6 +190,51 @@ export const useSeries = () => {
       );
 
       return seriesWithAuthors;
+    },
+  });
+};
+
+export const useAdminSeries = (options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: ['series', 'admin'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('series')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const seriesWithAuthors = await Promise.all(
+        (data || []).map(async (item) => {
+          const author = await fetchProfile(item.user_id);
+          return { ...item, author } as Series;
+        })
+      );
+
+      return seriesWithAuthors;
+    },
+    enabled: options?.enabled,
+  });
+};
+
+export const useApproveSeries = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string, status: 'approved' | 'rejected' | 'pending' }) => {
+      const { data, error } = await (supabase as any)
+        .from('series')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['series'] });
+      toast.success('Đã cập nhật trạng thái series');
     },
   });
 };
@@ -232,6 +294,10 @@ export const useCreateSeries = () => {
     mutationFn: async (input: {
       title: string;
       description: string;
+      category?: string;
+      difficulty?: string;
+      target_audience?: string;
+      estimated_duration?: string;
       tags?: string[];
       thumbnail_url?: string;
     }) => {
@@ -248,10 +314,14 @@ export const useCreateSeries = () => {
           title: input.title,
           slug,
           description: input.description,
+          category: input.category || 'general',
+          difficulty: input.difficulty || 'beginner',
+          target_audience: input.target_audience,
+          estimated_duration: input.estimated_duration,
           tags: input.tags || [],
           thumbnail_url: input.thumbnail_url,
           is_published: true,
-          status: 'approved' // Admin created series are auto-approved for now
+          status: 'pending'
         })
         .select()
         .single();
@@ -262,6 +332,32 @@ export const useCreateSeries = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['series'] });
       toast.success('Tạo series thành công!');
+    },
+  });
+};
+
+export const useUpdateSeries = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Series> & { id: string }) => {
+      const { data, error } = await (supabase as any)
+        .from('series')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['series'] });
+      queryClient.invalidateQueries({ queryKey: ['series', data.id] });
+      toast.success('Cập nhật series thành công!');
+    },
+    onError: (error) => {
+      toast.error('Lỗi cập nhật: ' + error.message);
     },
   });
 };
@@ -297,6 +393,7 @@ export const useFeaturedBlogPosts = () => {
         `)
         .eq('is_published', true)
         .eq('is_featured', true)
+        .eq('status', 'approved')
         .order('created_at', { ascending: false })
         .limit(4);
 
@@ -442,6 +539,7 @@ export const useCreateBlogPost = () => {
           tags: input.tags || [],
           thumbnail_url: input.thumbnail_url,
           is_published: input.is_published ?? false,
+          status: 'pending',
         })
         .select()
         .single();

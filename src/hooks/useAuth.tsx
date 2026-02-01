@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, currentUser?: User | null) => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -37,39 +37,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data) {
         setProfile(data);
-        // Basic admin check: role is 'admin' OR specific emails
-        setIsAdmin((data as any).role === 'admin' || user?.email === 'admin@codeconnect.com');
+        // Use currentUser if provided, otherwise fallback to user state
+        const effectiveUser = currentUser || user;
+        const isAdminUser = (data as any).role === 'admin' || effectiveUser?.email === 'admin@codeconnect.com';
+        setIsAdmin(isAdminUser);
+        return { profile: data, isAdmin: isAdminUser };
       }
+      return { profile: null, isAdmin: false };
     } catch (err) {
       console.error('Error fetching profile:', err);
+      return { profile: null, isAdmin: false };
     }
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-          setIsAdmin(false);
+    let mounted = true;
+
+    // Use a flag to avoid multiple initial loads
+    let hasLoaded = false;
+
+    const handleAuthChange = async (session: Session | null) => {
+      if (!mounted) return;
+
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session?.user) {
+        try {
+          await fetchProfile(session.user.id, session.user);
+        } catch (err) {
+          console.error("Auth initialization profile fetch error:", err);
         }
+      } else {
+        setProfile(null);
+        setIsAdmin(false);
+      }
+
+      if (mounted) {
         setLoading(false);
+        hasLoaded = true;
+      }
+    };
+
+    // Initialize session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!hasLoaded) {
+        handleAuthChange(session);
+      }
+    });
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        handleAuthChange(session);
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {

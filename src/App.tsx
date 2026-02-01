@@ -25,6 +25,10 @@ import PostDetail from "./pages/PostDetail";
 import Admin from "./pages/Admin";
 import AdminLogin from "./pages/AdminLogin";
 import SeriesDetail from "./pages/SeriesDetail";
+import CreateBlogPost from "./pages/CreateBlogPost";
+import EditBlogPost from "./pages/EditBlogPost";
+import CreateSeries from "./pages/CreateSeries";
+import EditSeries from "./pages/EditSeries";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,7 +46,11 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/feed" element={<Feed />} />
                 <Route path="/blog" element={<Blog />} />
+                <Route path="/blog/create" element={<CreateBlogPost />} />
+                <Route path="/blog/edit/:id" element={<EditBlogPost />} />
                 <Route path="/blog/:id" element={<BlogPost />} />
+                <Route path="/blog/series/create" element={<CreateSeries />} />
+                <Route path="/blog/series/edit/:id" element={<EditSeries />} />
                 <Route path="/blog/series/:id" element={<SeriesDetail />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/marketplace" element={<Marketplace />} />

@@ -3,15 +3,16 @@ import Layout from '@/components/layout/Layout';
 import {
     useAdminBlogPosts,
     useApproveBlogPost,
+    useApproveSeries,
     useDeleteBlogPost,
-    useSeries,
+    useAdminSeries,
     useDeleteSeries,
     useCreateSeries,
     BlogPost,
     Series
 } from '@/hooks/useBlogPosts';
 import { useAuth } from '@/hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,10 +34,11 @@ import { toast } from 'sonner';
 
 const Admin: React.FC = () => {
     const { isAdmin, loading } = useAuth();
-    const { data: posts, isLoading: postsLoading } = useAdminBlogPosts();
-    const { data: series, isLoading: seriesLoading } = useSeries();
+    const { data: posts, isLoading: postsLoading } = useAdminBlogPosts({ enabled: !loading && isAdmin });
+    const { data: series, isLoading: seriesLoading } = useAdminSeries({ enabled: !loading && isAdmin });
 
     const approvePost = useApproveBlogPost();
+    const approveSeries = useApproveSeries();
     const deletePost = useDeleteBlogPost();
     const deleteSeries = useDeleteSeries();
 
@@ -49,6 +51,14 @@ const Admin: React.FC = () => {
 
     const handleReject = (id: string) => {
         approvePost.mutate({ id, status: 'rejected' });
+    };
+
+    const handleApproveSeries = (id: string) => {
+        approveSeries.mutate({ id, status: 'approved' });
+    };
+
+    const handleRejectSeries = (id: string) => {
+        approveSeries.mutate({ id, status: 'rejected' });
     };
 
     const handleDeletePost = (id: string) => {
@@ -166,8 +176,10 @@ const Admin: React.FC = () => {
                                                                 <X className="w-4 h-4" />
                                                             </Button>
                                                         )}
-                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                                                            <Edit className="w-4 h-4" />
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0" asChild>
+                                                            <Link to={`/blog/edit/${post.id}`}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Link>
                                                         </Button>
                                                         <Button
                                                             size="sm"
@@ -189,9 +201,11 @@ const Admin: React.FC = () => {
 
                     <TabsContent value="series">
                         <div className="flex justify-end mb-4">
-                            <Button variant="gradient" className="gap-2">
-                                <Plus className="w-4 h-4" />
-                                Tạo Series mới
+                            <Button variant="gradient" className="gap-2" asChild>
+                                <Link to="/blog/series/create">
+                                    <Plus className="w-4 h-4" />
+                                    Tạo Series mới
+                                </Link>
                             </Button>
                         </div>
                         <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -201,7 +215,7 @@ const Admin: React.FC = () => {
                                         <tr>
                                             <th className="px-6 py-4 text-sm font-semibold">Series</th>
                                             <th className="px-6 py-4 text-sm font-semibold">Tác giả</th>
-                                            <th className="px-6 py-4 text-sm font-semibold">Số bài viết</th>
+                                            <th className="px-6 py-4 text-sm font-semibold">Trạng thái</th>
                                             <th className="px-6 py-4 text-sm font-semibold text-right">Thao tác</th>
                                         </tr>
                                     </thead>
@@ -221,13 +235,35 @@ const Admin: React.FC = () => {
                                                 <td className="px-6 py-4 text-sm">
                                                     {item.author?.display_name || 'Anonymous'}
                                                 </td>
-                                                <td className="px-6 py-4 text-sm">
-                                                    -
+                                                <td className="px-6 py-4">
+                                                    {getStatusBadge((item as any).status || 'pending')}
                                                 </td>
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end gap-2">
-                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0">
-                                                            <Edit className="w-4 h-4" />
+                                                        {(item as any).status !== 'approved' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
+                                                                onClick={() => handleApproveSeries(item.id)}
+                                                            >
+                                                                <Check className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
+                                                        {(item as any).status !== 'rejected' && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                                onClick={() => handleRejectSeries(item.id)}
+                                                            >
+                                                                <X className="w-4 h-4" />
+                                                            </Button>
+                                                        )}
+                                                        <Button size="sm" variant="outline" className="h-8 w-8 p-0" asChild>
+                                                            <Link to={`/blog/series/edit/${item.id}`}>
+                                                                <Edit className="w-4 h-4" />
+                                                            </Link>
                                                         </Button>
                                                         <Button
                                                             size="sm"

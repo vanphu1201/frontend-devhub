@@ -18,7 +18,8 @@ import {
   User,
   ArrowUpDown,
   Check,
-  Loader2
+  Loader2,
+  Layers
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -258,10 +259,20 @@ const Blog: React.FC = () => {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="gradient" className="gap-2 h-[46px] rounded-lg">
-            <BookOpen className="w-4 h-4" />
-            Viết bài mới
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2 h-[46px] rounded-lg border-primary/20 hover:bg-primary/5" asChild>
+              <Link to="/blog/series/create">
+                <Layers className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline">Tạo Series</span>
+              </Link>
+            </Button>
+            <Button variant="gradient" className="gap-2 h-[46px] rounded-lg shadow-lg shadow-primary/10" asChild>
+              <Link to="/blog/create">
+                <BookOpen className="w-4 h-4" />
+                Viết bài mới
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Categories */}

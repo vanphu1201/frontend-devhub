@@ -75,6 +75,30 @@ const FollowButton: React.FC<{ authorId: string }> = ({ authorId }) => {
   );
 };
 
+
+const generateTableOfContents = (content: string) => {
+  const lines = content.split('\n');
+  const toc: { id: string; title: string; level: number }[] = [];
+
+  lines.forEach(line => {
+    if (line.startsWith('# ')) {
+      const title = line.replace('# ', '').trim();
+      const id = title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      toc.push({ id, title, level: 1 });
+    } else if (line.startsWith('## ')) {
+      const title = line.replace('## ', '').trim();
+      const id = title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      toc.push({ id, title, level: 2 });
+    } else if (line.startsWith('### ')) {
+      const title = line.replace('### ', '').trim();
+      const id = title.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+      toc.push({ id, title, level: 3 });
+    }
+  });
+
+  return toc;
+};
+
 const BlogPost: React.FC = () => {
   const { id: idOrSlug } = useParams<{ id: string }>();
   const { data: post, isLoading, error } = useBlogPost(idOrSlug || '');
@@ -94,16 +118,40 @@ const BlogPost: React.FC = () => {
   const { data: comments } = useBlogPostComments(post?.id || '');
 
   const cleanedContent = post?.content?.replace(/\\n/g, '\n') || '';
-
-  const topComments = (comments?.filter(c => (c.likes_count || 0) > 0) || [])
-    .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
-    .slice(0, 3);
+  const tableOfContents = post ? generateTableOfContents(cleanedContent) : [];
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   useEffect(() => {
     if (post?.id) {
       incrementView.mutate(post.id);
     }
   }, [post?.id]);
+
+  const topComments = (comments?.filter(c => (c.likes_count || 0) > 0) || [])
+    .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+    .slice(0, 3);
+
+  useEffect(() => {
+    if (tableOfContents.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveId(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '0% 0% -80% 0%' }
+    );
+
+    tableOfContents.forEach((item) => {
+      const element = document.getElementById(item.id);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
+  }, [tableOfContents]);
 
   const handleLike = () => {
     if (!user) {
@@ -173,9 +221,6 @@ const BlogPost: React.FC = () => {
     );
   }
 
-  const tableOfContents = [
-    { id: 'content', title: 'Nội dung chính', level: 1 },
-  ];
 
   return (
     <Layout>
@@ -379,22 +424,47 @@ const BlogPost: React.FC = () => {
 
           {/* Sidebar */}
           <aside className="hidden lg:block space-y-6">
-            <div className="bg-card rounded-xl border border-border p-6 sticky top-24 shadow-sm">
-              <div className="flex items-center gap-2 mb-4">
-                <List className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold">Mục lục</h3>
+            <div className="bg-card/50 backdrop-blur-sm rounded-2xl border border-border/50 p-6 sticky top-24 shadow-xl shadow-primary/5">
+              <div className="flex items-center gap-2 mb-6 border-b border-border/50 pb-4">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <List className="w-5 h-5" />
+                </div>
+                <h3 className="font-bold text-lg tracking-tight">Mục lục</h3>
               </div>
-              <nav className="space-y-2">
-                {tableOfContents.map((item) => (
+              <nav className="space-y-1 relative">
+                {/* Active indicator line */}
+                <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-muted/30" />
+
+                {tableOfContents.length > 0 ? tableOfContents.map((item) => (
                   <a
                     key={item.id}
-                    href={`#content`}
-                    className={`block text-sm hover:text-primary transition-colors font-medium text-muted-foreground`}
+                    href={`#${item.id}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(item.id)?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                    className={`block py-2 text-sm transition-all relative pl-5 hover:text-primary ${activeId === item.id
+                      ? 'text-primary font-bold'
+                      : 'text-muted-foreground font-medium'
+                      }`}
+                    style={{ marginLeft: `${(item.level - 1) * 12}px` }}
                   >
+                    {activeId === item.id && (
+                      <div className="absolute left-[-1.5px] top-1/2 -translate-y-1/2 w-[3px] h-5 bg-primary rounded-full shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                    )}
                     {item.title}
                   </a>
-                ))}
+                )) : (
+                  <p className="text-sm text-muted-foreground italic">Không có nội dung chính</p>
+                )}
               </nav>
+
+              <div className="mt-8 pt-6 border-t border-border/50">
+                <div className="bg-gradient-to-br from-primary/10 to-accent/10 rounded-xl p-4 border border-primary/20">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-primary mb-2">Đang đọc bài viết</h4>
+                  <p className="text-sm font-semibold line-clamp-2 leading-snug">{post.title}</p>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
