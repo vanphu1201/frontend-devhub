@@ -19,53 +19,40 @@ import {
   Flame,
   Eye,
   Loader2,
-  X
+  X,
+  Trophy
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { usePosts, useCreatePost, useLikePost, useUnlikePost, useIsPostLiked, useUploadPostImage, Post } from '@/hooks/usePosts';
+import {
+  usePosts,
+  useCreatePost,
+  useLikePost,
+  useUnlikePost,
+  useIsPostLiked,
+  useUploadPostImage,
+  useBookmarkPost,
+  useIsPostBookmarked,
+  useSharePost,
+  usePostComments,
+  Post
+} from '@/hooks/usePosts';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { toast } from 'sonner';
 import CodeBlock from '@/components/ui/CodeBlock';
+import CommentDialog from '@/components/home/CommentDialog';
+import PostMenu from '@/components/home/PostMenu';
+import ContentRenderer from '@/components/ui/ContentRenderer';
 
-const renderContent = (content: string) => {
-  // Regex to find code blocks: ```[language]\n[code]```
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  return parts.map((part, index) => {
-    if (part.startsWith('```') && part.endsWith('```')) {
-      // Extract language and code
-      const innerContent = part.slice(3, -3).trim();
-      const firstNewLineIndex = innerContent.indexOf('\n');
-
-      let language = '';
-      let code = innerContent;
-
-      if (firstNewLineIndex !== -1) {
-        const possibleLanguage = innerContent.slice(0, firstNewLineIndex).trim();
-        // Basic check if it's a language name or just part of the code
-        if (possibleLanguage.length < 20 && !possibleLanguage.includes(' ')) {
-          language = possibleLanguage;
-          code = innerContent.slice(firstNewLineIndex + 1).trim();
-        }
-      }
-
-      return <CodeBlock key={index} code={code} language={language} />;
-    }
-
-    return (
-      <div key={index} className="whitespace-pre-wrap mb-2 last:mb-0">
-        {part}
-      </div>
-    );
-  });
-};
-
-const PostCard: React.FC<{ post: Post }> = ({ post }) => {
+export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const { user } = useAuth();
   const { data: isLiked } = useIsPostLiked(post.id);
+  const { data: isBookmarked } = useIsPostBookmarked(post.id);
   const likePost = useLikePost();
   const unlikePost = useUnlikePost();
+  const bookmarkPost = useBookmarkPost();
+  const sharePost = useSharePost();
+  const [isCommentOpen, setIsCommentOpen] = useState(false);
 
   const handleLike = () => {
     if (!user) {
@@ -76,6 +63,34 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       unlikePost.mutate(post.id);
     } else {
       likePost.mutate(post.id);
+    }
+  };
+
+  const handleBookmark = () => {
+    if (!user) {
+      toast.error('Vui lòng đăng nhập để lưu bài viết');
+      return;
+    }
+    bookmarkPost.mutate(post.id);
+  };
+
+  const handleShare = async () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'CodeConnect Hub',
+          text: post.content.substring(0, 100) + '...',
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Đã sao chép liên kết vào bộ nhớ tạm!');
+      }
+      sharePost.mutate(post.id);
+    } catch (err) {
+      // User cancelled
     }
   };
 
@@ -92,6 +107,13 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const getUsername = () => {
     return post.author?.username ? `@${post.author.username}` : '';
   };
+
+  const { data: comments } = usePostComments(post.id);
+
+  const topComments = (comments || [])
+    .filter(c => (c.likes_count || 0) > 0)
+    .sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
+    .slice(0, 3);
 
   const formatTime = (dateStr: string) => {
     return formatDistanceToNow(new Date(dateStr), { addSuffix: true, locale: vi });
@@ -137,17 +159,13 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
+          <PostMenu post={post} />
         </div>
       </div>
 
       {/* Post Content */}
       <div className="px-6 pb-4">
-        <div className="prose prose-sm dark:prose-invert max-w-none text-[15px] leading-relaxed">
-          {renderContent(post.content)}
-        </div>
+        <ContentRenderer content={post.content} />
         {post.image_url && (
           <div className="mt-4 rounded-xl overflow-hidden border border-border">
             <img
@@ -166,6 +184,42 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             ))}
           </div>
         )}
+
+        {/* Top Comments Preview */}
+        {topComments.length > 0 && (
+          <div className="mt-4 bg-muted/20 border border-border/50 rounded-xl p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-center gap-2 mb-3 text-[11px] font-bold text-primary/70 uppercase tracking-wider">
+              <Trophy className="w-3 h-3" />
+              Bình luận hàng đầu
+            </div>
+            <div className="space-y-4">
+              {topComments.map((comment, index) => (
+                <div key={comment.id} className="flex gap-3">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-xs font-bold border border-primary/10">
+                    {comment.author?.display_name?.[0].toUpperCase() || 'U'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs font-bold truncate">
+                        {comment.author?.display_name || 'Người dùng'}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        • {formatTime(comment.created_at)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed italic">
+                      "{comment.content}"
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-bold text-primary">
+                      <Heart className="w-3 h-3 fill-current" />
+                      {comment.likes_count} lượt thích
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Post Actions */}
@@ -181,19 +235,30 @@ const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             <Heart className={`w-4 h-4 ${isLiked ? 'fill-current' : ''}`} />
             {post.likes_count || 0}
           </Button>
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={() => setIsCommentOpen(true)}>
             <MessageSquare className="w-4 h-4" />
             {post.comments_count || 0}
           </Button>
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-2" onClick={handleShare}>
             <Share2 className="w-4 h-4" />
             {post.shares_count || 0}
           </Button>
         </div>
-        <Button variant="ghost" size="icon">
-          <Bookmark className="w-4 h-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className={isBookmarked ? 'text-primary' : ''}
+          onClick={handleBookmark}
+        >
+          <Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-current' : ''}`} />
         </Button>
       </div>
+
+      <CommentDialog
+        post={post}
+        isOpen={isCommentOpen}
+        onClose={() => setIsCommentOpen(false)}
+      />
     </article>
   );
 };
@@ -347,9 +412,7 @@ const Feed: React.FC = () => {
                   {postContent.includes('```') && (
                     <div className="mt-4 p-4 rounded-xl bg-muted/30 border border-border/50">
                       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-2">Xem trước bài đăng</div>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-[15px] leading-relaxed opacity-80">
-                        {renderContent(postContent)}
-                      </div>
+                      <ContentRenderer content={postContent} className="opacity-80" />
                     </div>
                   )}
 
