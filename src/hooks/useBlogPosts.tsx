@@ -201,7 +201,7 @@ export const useSeriesDetail = (idOrSlug: string) => {
       const series = { ...seriesData, author } as Series;
 
       // Fetch posts in this series
-      const { data: postsData, error: postsError } = await supabase
+      const { data: postsData, error: postsError } = await (supabase as any)
         .from('blog_posts')
         .select('*')
         .eq('series_id', series.id)
@@ -288,7 +288,7 @@ export const useFeaturedBlogPosts = () => {
   return useQuery({
     queryKey: ['blog_posts', 'featured'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('blog_posts')
         .select(`
           *,
@@ -326,7 +326,7 @@ export const useBlogPost = (idOrSlug: string) => {
       // Check if it's a UUID
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
 
-      let query = supabase
+      let query = (supabase as any)
         .from('blog_posts')
         .select(`
           *,
@@ -394,7 +394,7 @@ export const useUserBlogPosts = (userId: string) => {
   return useQuery({
     queryKey: ['blog_posts', 'user', userId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('blog_posts')
         .select('*')
         .eq('user_id', userId)
@@ -430,7 +430,7 @@ export const useCreateBlogPost = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/(^-|-$)/g, '') + '-' + Date.now();
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('blog_posts')
         .insert({
           user_id: user.id,
@@ -464,7 +464,7 @@ export const useUpdateBlogPost = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<BlogPost> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('blog_posts')
         .update(updates)
         .eq('id', id)
@@ -490,7 +490,7 @@ export const useDeleteBlogPost = () => {
 
   return useMutation({
     mutationFn: async (postId: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('blog_posts')
         .delete()
         .eq('id', postId);
@@ -611,7 +611,7 @@ export const useBookmarkBlogPost = () => {
     mutationFn: async (postId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bookmarks')
         .insert({ blog_post_id: postId, user_id: user.id });
 
@@ -633,7 +633,7 @@ export const useUnbookmarkBlogPost = () => {
     mutationFn: async (postId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bookmarks')
         .delete()
         .eq('blog_post_id', postId)
@@ -657,7 +657,7 @@ export const useIsBlogPostBookmarked = (postId: string) => {
     queryFn: async () => {
       if (!user?.id) return false;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bookmarks')
         .select('id')
         .eq('blog_post_id', postId)
