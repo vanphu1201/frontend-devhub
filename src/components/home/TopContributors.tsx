@@ -101,14 +101,17 @@ const TopContributors: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 text-yellow-500 mb-2">
               <Trophy className="w-5 h-5" />
-              <span className="text-sm font-medium">Leaderboard</span>
+              <span className="text-sm font-medium uppercase tracking-wider">Leaderboard</span>
             </div>
-            <h2 className="text-3xl font-bold">Top Contributors</h2>
+            <h2 className="text-4xl font-extrabold tracking-tight">Top Contributors</h2>
           </div>
-          <Button variant="ghost" asChild className="hidden sm:flex">
+          <Button
+            asChild
+            className="hidden sm:flex bg-[#2DD4BF] hover:bg-[#2DD4BF]/90 text-white rounded-xl px-6 h-12 shadow-lg shadow-teal-500/20 transition-all hover:scale-105 active:scale-95"
+          >
             <Link to="/leaderboard" className="flex items-center gap-2">
               Xem bảng xếp hạng
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </Link>
           </Button>
         </div>
@@ -126,12 +129,11 @@ const TopContributors: React.FC = () => {
               </div>
 
               {/* Avatar */}
-              <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg font-bold ${
-                user.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
-                user.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
-                user.rank === 3 ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white' :
-                'bg-gradient-to-br from-primary to-accent text-primary-foreground'
-              }`}>
+              <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg font-bold ${user.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
+                  user.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
+                    user.rank === 3 ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white' :
+                      'bg-gradient-to-br from-primary to-accent text-primary-foreground'
+                }`}>
                 {user.avatar}
               </div>
 
