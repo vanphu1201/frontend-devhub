@@ -52,7 +52,7 @@ export const useResources = (filter: 'all' | 'free' | 'premium' = 'all') => {
         query = query.eq('is_premium', true);
       }
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await query.limit(50);
       if (error) throw error;
 
       const resourcesWithAuthors = await Promise.all(
@@ -64,6 +64,31 @@ export const useResources = (filter: 'all' | 'free' | 'premium' = 'all') => {
 
       return resourcesWithAuthors;
     },
+  });
+};
+
+export const useAdminResources = () => {
+  const { isAdmin } = useAuth();
+  return useQuery({
+    queryKey: ['resources', 'admin'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('resources')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const resourcesWithAuthors = await Promise.all(
+        (data || []).map(async (resource) => {
+          const author = await fetchProfile(resource.user_id);
+          return { ...resource, author } as Resource;
+        })
+      );
+
+      return resourcesWithAuthors;
+    },
+    enabled: isAdmin,
   });
 };
 
@@ -117,7 +142,7 @@ export const useCreateResource = () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       toast.success('Tạo tài liệu thành công!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
@@ -143,7 +168,7 @@ export const useUpdateResource = () => {
       queryClient.invalidateQueries({ queryKey: ['resources', data.id] });
       toast.success('Cập nhật thành công!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
@@ -165,8 +190,11 @@ export const useDeleteResource = () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
       toast.success('Đã xóa tài liệu!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
 };
+
+
+

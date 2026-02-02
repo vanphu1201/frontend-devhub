@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  ShoppingBag, 
-  Download, 
-  FileText, 
-  MessageSquare, 
+import {
+  ShoppingBag,
+  Download,
+  FileText,
+  MessageSquare,
   Eye,
   ExternalLink,
   Clock,
@@ -15,94 +15,51 @@ import {
   AlertCircle,
   Plus,
   Search,
-  Filter
+  Filter,
+  Loader2,
+  ExternalLink as ExternalLinkIcon
 } from 'lucide-react';
+import { useUserPurchases } from '@/hooks/useProducts';
+import { useUserTickets } from '@/hooks/useTickets';
+import { useAuth } from '@/hooks/useAuth';
 
 const Dashboard: React.FC = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'purchases' | 'tickets'>('purchases');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const { data: purchases = [], isLoading: loadingPurchases } = useUserPurchases();
+  const { data: tickets = [], isLoading: loadingTickets } = useUserTickets();
+
   const stats = [
-    { label: 'Sản phẩm đã mua', value: 5, icon: ShoppingBag, color: 'text-primary' },
-    { label: 'Tổng tải xuống', value: 23, icon: Download, color: 'text-accent' },
-    { label: 'Tickets hỗ trợ', value: 2, icon: MessageSquare, color: 'text-yellow-500' },
-  ];
-
-  const purchases = [
     {
-      id: 1,
-      name: 'SaaS Dashboard Pro',
-      price: 890000,
-      purchaseDate: '15/01/2024',
-      version: '2.1.0',
-      image: '/placeholder.svg',
-      status: 'active',
-      downloadCount: 5,
-      documentation: true,
-      hasUpdate: true,
-      updateVersion: '2.2.0',
+      label: 'Sản phẩm đã mua',
+      value: purchases.length,
+      icon: ShoppingBag,
+      color: 'text-primary'
     },
     {
-      id: 2,
-      name: 'E-commerce Starter Kit',
-      price: 590000,
-      purchaseDate: '10/01/2024',
-      version: '1.5.0',
-      image: '/placeholder.svg',
-      status: 'active',
-      downloadCount: 3,
-      documentation: true,
-      hasUpdate: false,
+      label: 'Tổng tải xuống',
+      value: purchases.reduce((acc, p) => acc + (p.download_count || 0), 0),
+      icon: Download,
+      color: 'text-accent'
     },
     {
-      id: 3,
-      name: 'Blog Platform Template',
-      price: 0,
-      purchaseDate: '05/01/2024',
-      version: '1.0.0',
-      image: '/placeholder.svg',
-      status: 'active',
-      downloadCount: 8,
-      documentation: true,
-      hasUpdate: false,
-    },
-    {
-      id: 4,
-      name: 'Admin Template Ultimate',
-      price: 690000,
-      purchaseDate: '01/01/2024',
-      version: '3.0.0',
-      image: '/placeholder.svg',
-      status: 'active',
-      downloadCount: 7,
-      documentation: true,
-      hasUpdate: true,
-      updateVersion: '3.1.0',
+      label: 'Tickets hỗ trợ',
+      value: tickets.length,
+      icon: MessageSquare,
+      color: 'text-yellow-500'
     },
   ];
 
-  const tickets = [
-    {
-      id: 1,
-      subject: 'Lỗi khi cài đặt dependencies',
-      product: 'SaaS Dashboard Pro',
-      status: 'open',
-      priority: 'high',
-      createdAt: '16/01/2024',
-      lastReply: '17/01/2024',
-      replies: 3,
-    },
-    {
-      id: 2,
-      subject: 'Hỏi về cách customize theme',
-      product: 'E-commerce Starter Kit',
-      status: 'resolved',
-      priority: 'medium',
-      createdAt: '12/01/2024',
-      lastReply: '14/01/2024',
-      replies: 5,
-    },
-  ];
+  const filteredPurchases = purchases.filter((p) =>
+    p.product?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredTickets = tickets.filter((t) =>
+    t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.product?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const formatPrice = (price: number) => {
     if (price === 0) return 'Miễn phí';
@@ -148,22 +105,20 @@ const Dashboard: React.FC = () => {
           <div className="flex items-center gap-2 bg-muted/50 rounded-xl p-1">
             <button
               onClick={() => setActiveTab('purchases')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'purchases'
-                  ? 'bg-background shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'purchases'
+                ? 'bg-background shadow text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <ShoppingBag className="w-4 h-4" />
               Sản phẩm đã mua
             </button>
             <button
               onClick={() => setActiveTab('tickets')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === 'tickets'
-                  ? 'bg-background shadow text-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'tickets'
+                ? 'bg-background shadow text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+                }`}
             >
               <MessageSquare className="w-4 h-4" />
               Tickets hỗ trợ
@@ -176,9 +131,11 @@ const Dashboard: React.FC = () => {
           </div>
 
           {activeTab === 'tickets' && (
-            <Button variant="gradient" className="gap-2">
-              <Plus className="w-4 h-4" />
-              Tạo Ticket mới
+            <Button variant="gradient" className="gap-2" asChild>
+              <Link to="/marketplace">
+                <Plus className="w-4 h-4" />
+                Tạo Ticket mới (Từ SP)
+              </Link>
             </Button>
           )}
         </div>
@@ -198,142 +155,158 @@ const Dashboard: React.FC = () => {
         {/* Purchases Tab */}
         {activeTab === 'purchases' && (
           <div className="space-y-4">
-            {purchases.map((product, index) => (
-              <div
-                key={product.id}
-                className="bg-card rounded-xl border border-border overflow-hidden animate-fade-in"
-                style={{ animationDelay: `${index * 0.05}s` }}
-              >
-                <div className="flex flex-col sm:flex-row">
-                  {/* Image */}
-                  <div className="sm:w-48 aspect-video sm:aspect-square bg-muted flex-shrink-0">
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
+            {loadingPurchases ? (
+              <div className="text-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                <p>Đang tải sản phẩm...</p>
+              </div>
+            ) : filteredPurchases.length === 0 ? (
+              <div className="text-center py-20 bg-muted/20 rounded-2xl border border-dashed border-border">
+                <p className="text-muted-foreground">Bạn chưa mua sản phẩm nào.</p>
+                <Button variant="link" asChild>
+                  <Link to="/marketplace">Đến Marketplace ngay</Link>
+                </Button>
+              </div>
+            ) : (
+              filteredPurchases.map((purchase, index) => (
+                <div
+                  key={purchase.id}
+                  className="bg-card rounded-xl border border-border overflow-hidden animate-fade-in"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    {/* Image */}
+                    <div className="sm:w-48 aspect-video sm:aspect-square bg-muted flex-shrink-0">
+                      <img
+                        src={purchase.product?.preview_images?.[0] || '/placeholder.svg'}
+                        alt={purchase.product?.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
 
-                  {/* Content */}
-                  <div className="flex-1 p-5">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="font-semibold text-lg">{product.name}</h3>
-                          {product.hasUpdate && (
-                            <Badge variant="info" className="text-xs">
-                              v{product.updateVersion} có sẵn
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            Mua ngày {product.purchaseDate}
-                          </span>
-                          <span>Phiên bản: v{product.version}</span>
-                          <span className="flex items-center gap-1">
-                            <Download className="w-4 h-4" />
-                            {product.downloadCount} lượt tải
-                          </span>
-                        </div>
+                    {/* Content */}
+                    <div className="flex-1 p-5">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <h3 className="font-semibold text-lg">{purchase.product?.name}</h3>
+                          </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <Button variant="gradient" size="sm" className="gap-1">
-                            <Download className="w-4 h-4" />
-                            Tải xuống
-                          </Button>
-                          {product.documentation && (
-                            <Button variant="outline" size="sm" className="gap-1">
-                              <FileText className="w-4 h-4" />
-                              Documentation
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              Mua ngày {new Date(purchase.purchased_at).toLocaleDateString('vi-VN')}
+                            </span>
+                            <span>Phiên bản: {purchase.product?.version || '1.0.0'}</span>
+                            <span className="flex items-center gap-1">
+                              <Download className="w-4 h-4" />
+                              {purchase.download_count} lượt tải
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="gradient" size="sm" className="gap-1">
+                              <Download className="w-4 h-4" />
+                              Tải xuống
                             </Button>
-                          )}
-                          <Button variant="outline" size="sm" className="gap-1" asChild>
-                            <Link to={`/marketplace/${product.id}`}>
-                              <Eye className="w-4 h-4" />
-                              Xem sản phẩm
-                            </Link>
-                          </Button>
+                            {purchase.product?.documentation_url && (
+                              <Button variant="outline" size="sm" className="gap-1" asChild>
+                                <a href={purchase.product.documentation_url} target="_blank" rel="noopener noreferrer">
+                                  <FileText className="w-4 h-4" />
+                                  Tài liệu
+                                </a>
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" className="gap-1" asChild>
+                              <Link to={`/marketplace/${purchase.product_id}`}>
+                                <Eye className="w-4 h-4" />
+                                Xem & Đánh giá
+                              </Link>
+                            </Button>
+                          </div>
                         </div>
-                      </div>
 
-                      <div className="text-right">
-                        <p className={`text-lg font-bold ${product.price === 0 ? 'text-green-500' : 'text-primary'}`}>
-                          {formatPrice(product.price)}
-                        </p>
+                        <div className="text-right">
+                          <p className={`text-lg font-bold ${purchase.price_paid === 0 ? 'text-green-500' : 'text-primary'}`}>
+                            {formatPrice(purchase.price_paid)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         )}
 
         {/* Tickets Tab */}
         {activeTab === 'tickets' && (
           <div className="space-y-4">
-            {tickets.length === 0 ? (
+            {loadingTickets ? (
+              <div className="text-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+                <p>Đang tải tickets...</p>
+              </div>
+            ) : filteredTickets.length === 0 ? (
               <div className="text-center py-16 bg-card rounded-xl border border-border">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                   <MessageSquare className="w-8 h-8 text-muted-foreground" />
                 </div>
                 <h3 className="font-semibold mb-2">Chưa có ticket nào</h3>
                 <p className="text-muted-foreground mb-4">
-                  Tạo ticket nếu bạn cần hỗ trợ kỹ thuật
+                  Tạo ticket nếu bạn cần hỗ trợ kỹ thuật cho sản phẩm
                 </p>
-                <Button variant="gradient">Tạo Ticket mới</Button>
               </div>
             ) : (
-              tickets.map((ticket, index) => (
-                <div
+              filteredTickets.map((ticket, index) => (
+                <Link
                   key={ticket.id}
-                  className="bg-card rounded-xl border border-border p-5 hover:border-primary/50 transition-colors cursor-pointer animate-fade-in"
+                  to={`/dashboard/tickets/${ticket.id}`}
+                  className="block animate-fade-in"
                   style={{ animationDelay: `${index * 0.05}s` }}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        ticket.status === 'open' ? 'bg-yellow-500/10' : 'bg-green-500/10'
-                      }`}>
-                        {ticket.status === 'open' ? (
-                          <AlertCircle className="w-5 h-5 text-yellow-500" />
-                        ) : (
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold mb-1">{ticket.subject}</h3>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Sản phẩm: {ticket.product}
-                        </p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          <span>Tạo ngày {ticket.createdAt}</span>
-                          <span>•</span>
-                          <span>{ticket.replies} phản hồi</span>
-                          <span>•</span>
-                          <span>Cập nhật: {ticket.lastReply}</span>
+                  <div className="bg-card rounded-xl border border-border p-5 hover:border-primary/50 transition-colors cursor-pointer">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${ticket.status === 'open' ? 'bg-yellow-500/10' : 'bg-green-500/10'
+                          }`}>
+                          {ticket.status === 'open' ? (
+                            <AlertCircle className="w-5 h-5 text-yellow-500" />
+                          ) : (
+                            <CheckCircle className="w-5 h-5 text-green-500" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold mb-1">{ticket.subject}</h3>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Sản phẩm: {ticket.product?.name || 'Không xác định'}
+                          </p>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>Tạo ngày {new Date(ticket.created_at).toLocaleDateString('vi-VN')}</span>
+                            <span>•</span>
+                            <span>ID: {ticket.id.split('-')[0]}</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant={
-                          ticket.priority === 'high' ? 'destructive' :
-                          ticket.priority === 'medium' ? 'warning' : 'secondary'
-                        }
-                      >
-                        {ticket.priority === 'high' ? 'Cao' :
-                         ticket.priority === 'medium' ? 'Trung bình' : 'Thấp'}
-                      </Badge>
-                      <Badge variant={ticket.status === 'open' ? 'warning' : 'success'}>
-                        {ticket.status === 'open' ? 'Đang mở' : 'Đã giải quyết'}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={
+                            ticket.priority === 'high' ? 'destructive' :
+                              ticket.priority === 'medium' ? 'warning' : 'secondary'
+                          }
+                        >
+                          {ticket.priority === 'high' ? 'Cao' :
+                            ticket.priority === 'medium' ? 'Trung bình' : 'Thấp'}
+                        </Badge>
+                        <Badge variant={ticket.status === 'open' ? 'warning' : 'success'}>
+                          {ticket.status === 'open' ? 'Đang mở' :
+                            ticket.status === 'resolved' ? 'Đã giải quyết' : 'Đã đóng'}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))
             )}
           </div>

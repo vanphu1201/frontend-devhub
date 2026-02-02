@@ -16,6 +16,7 @@ export interface Product {
   preview_images: string[];
   demo_url: string | null;
   documentation_url: string | null;
+  download_url: string | null;
   version: string;
   support_duration: string;
   rating: number;
@@ -42,6 +43,22 @@ export interface Purchase {
   download_count: number;
   purchased_at: string;
   product?: Product;
+}
+
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  user_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  updated_at: string;
+  author?: {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
 }
 
 // Helper function to fetch profile for a user
@@ -237,6 +254,7 @@ export const usePurchaseProduct = () => {
   });
 };
 
+
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -259,7 +277,11 @@ export const useCreateProduct = () => {
           preview_images: input.preview_images || [],
           demo_url: input.demo_url,
           documentation_url: input.documentation_url,
+          download_url: input.download_url,
+          version: input.version || '1.0.0',
+          support_duration: input.support_duration || '6 tháng',
           is_published: input.is_published ?? false,
+          is_featured: input.is_featured ?? false,
         })
         .select()
         .single();
@@ -273,6 +295,138 @@ export const useCreateProduct = () => {
     },
     onError: (error) => {
       toast.error('Lỗi tạo sản phẩm: ' + error.message);
+    },
+  });
+};
+
+export const useAdminProducts = () => {
+  const { isAdmin } = useAuth();
+  return useQuery({
+    queryKey: ['products', 'admin'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const productsWithAuthors = await Promise.all(
+        (data || []).map(async (product) => {
+          const author = await fetchProfile(product.user_id);
+          return { ...product, author } as Product;
+        })
+      );
+
+      return productsWithAuthors;
+    },
+    enabled: isAdmin,
+  });
+};
+
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
+      const { data, error } = await supabase
+        .from('products')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['products', data.id] });
+      toast.success('Cập nhật sản phẩm thành công!');
+    },
+    onError: (error: any) => {
+      toast.error('Lỗi cập nhật: ' + error.message);
+    },
+  });
+};
+
+export const useDeleteProduct = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (productId: string) => {
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Đã xóa sản phẩm!');
+    },
+    onError: (error: any) => {
+      toast.error('Lỗi xóa sản phẩm: ' + error.message);
+    },
+  });
+};
+
+export const useProductReviews = (productId: string) => {
+  return useQuery({
+    queryKey: ['product_reviews', productId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('product_reviews')
+        .select('*')
+        .eq('product_id', productId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const reviewsWithAuthors = await Promise.all(
+        (data || []).map(async (review) => {
+          const author = await fetchProfile(review.user_id);
+          return { ...review, author } as ProductReview;
+        })
+      );
+
+      return reviewsWithAuthors;
+    },
+    enabled: !!productId,
+  });
+};
+
+export const useAddReview = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (input: { productId: string; rating: number; comment: string }) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const { data, error } = await supabase
+        .from('product_reviews')
+        .upsert({
+          product_id: input.productId,
+          user_id: user.id,
+          rating: input.rating,
+          comment: input.comment,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['product_reviews', variables.productId] });
+      queryClient.invalidateQueries({ queryKey: ['products', variables.productId] });
+      toast.success('Đã gửi đánh giá của bạn!');
+    },
+    onError: (error: any) => {
+      toast.error('Lỗi gửi đánh giá: ' + error.message);
     },
   });
 };

@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Search, 
-  Star, 
-  Download, 
-  Eye, 
+import {
+  Search,
+  Star,
+  Download,
+  Eye,
   ShoppingCart,
   Monitor,
   Tablet,
@@ -20,10 +20,10 @@ import {
 } from 'lucide-react';
 import { useProducts, Product } from '@/hooks/useProducts';
 
-const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index: number }> = ({ 
-  product, 
-  viewMode, 
-  index 
+const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index: number }> = ({
+  product,
+  viewMode,
+  index
 }) => {
   const formatPrice = (price: number) => {
     if (price === 0) return 'Miễn phí';
@@ -43,15 +43,14 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
     return product.author?.display_name || product.author?.username || 'Người dùng';
   };
 
-  const discount = product.original_price 
-    ? Math.round((1 - product.price / product.original_price) * 100) 
+  const discount = product.original_price
+    ? Math.round((1 - product.price / product.original_price) * 100)
     : 0;
 
   return (
     <div
-      className={`group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in ${
-        viewMode === 'list' ? 'flex' : ''
-      }`}
+      className={`group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in ${viewMode === 'list' ? 'flex' : ''
+        }`}
       style={{ animationDelay: `${index * 0.05}s` }}
     >
       {/* Preview Image */}
@@ -67,7 +66,7 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
             <Monitor className="w-12 h-12 text-muted-foreground" />
           </div>
         )}
-        
+
         {product.is_featured && (
           <Badge variant="gradient" className="absolute top-3 left-3">
             Featured
@@ -78,7 +77,7 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
             -{discount}%
           </Badge>
         )}
-        
+
         {/* Quick Actions */}
         <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
           <Button size="sm" variant="secondary" className="gap-1" asChild>
@@ -116,8 +115,8 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
 
         <div className="flex items-center gap-2 mb-3">
           {product.author?.avatar_url ? (
-            <img 
-              src={product.author.avatar_url} 
+            <img
+              src={product.author.avatar_url}
               alt={getAuthorName()}
               className="w-6 h-6 rounded-full object-cover"
             />
@@ -127,7 +126,7 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
             </div>
           )}
           <span className="text-sm text-muted-foreground">{getAuthorName()}</span>
-          {product.author?.reputation && product.author.reputation > 1000 && (
+          {(product.author?.reputation ?? 0) > 1000 && (
             <Badge variant="secondary" className="text-xs">Verified</Badge>
           )}
         </div>
@@ -189,6 +188,7 @@ const Marketplace: React.FC = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [priceRange, setPriceRange] = useState<'all' | 'free' | 'paid'>('all');
+  const [sortBy, setSortBy] = useState<'newest' | 'bestseller' | 'price-asc' | 'price-desc'>('newest');
 
   const { data: products, isLoading, error } = useProducts(selectedCategory === 'all' ? undefined : selectedCategory);
 
@@ -213,13 +213,31 @@ const Marketplace: React.FC = () => {
       const matchesTech = product.tech_stack?.some(t => t.toLowerCase().includes(query));
       if (!matchesName && !matchesDesc && !matchesTech) return false;
     }
-    
-    // Price filter
-    if (priceRange === 'free' && product.price !== 0) return false;
-    if (priceRange === 'paid' && product.price === 0) return false;
-    
+
     return true;
   }) || [];
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    switch (sortBy) {
+      case 'newest':
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case 'price-asc':
+        return a.price - b.price;
+      case 'price-desc':
+        return b.price - a.price;
+      case 'bestseller':
+        return (b.downloads_count || 0) - (a.downloads_count || 0);
+      default:
+        return 0;
+    }
+  });
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedCategory('all');
+    setPriceRange('all');
+    setSortBy('newest');
+  };
 
   return (
     <Layout>
@@ -244,7 +262,7 @@ const Marketplace: React.FC = () => {
               className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-muted/50 border border-border focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
           </div>
-          
+
           <div className="flex items-center gap-2">
             <select
               value={priceRange}
@@ -255,7 +273,7 @@ const Marketplace: React.FC = () => {
               <option value="free">Miễn phí</option>
               <option value="paid">Có phí</option>
             </select>
-            
+
             <Button variant="outline" className="gap-2">
               <SlidersHorizontal className="w-4 h-4" />
               Bộ lọc
@@ -288,11 +306,10 @@ const Marketplace: React.FC = () => {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
-                      selectedCategory === cat.id
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                    }`}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${selectedCategory === cat.id
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
                   >
                     <span>{cat.name}</span>
                   </button>
@@ -307,11 +324,15 @@ const Marketplace: React.FC = () => {
               <p className="text-sm text-muted-foreground">
                 Hiển thị {filteredProducts.length} sản phẩm
               </p>
-              <select className="text-sm bg-transparent border-none outline-none">
-                <option>Mới nhất</option>
-                <option>Bán chạy nhất</option>
-                <option>Giá thấp đến cao</option>
-                <option>Giá cao đến thấp</option>
+              <select
+                className="text-sm bg-transparent border-none outline-none cursor-pointer"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+              >
+                <option value="newest">Mới nhất</option>
+                <option value="bestseller">Bán chạy nhất</option>
+                <option value="price-asc">Giá thấp đến cao</option>
+                <option value="price-desc">Giá cao đến thấp</option>
               </select>
             </div>
 
@@ -323,26 +344,31 @@ const Marketplace: React.FC = () => {
               <div className="text-center py-12 text-destructive">
                 Lỗi tải sản phẩm: {error.message}
               </div>
-            ) : filteredProducts.length > 0 ? (
+            ) : sortedProducts.length > 0 ? (
               <div className={`grid gap-6 ${viewMode === 'grid' ? 'sm:grid-cols-2 xl:grid-cols-3' : 'grid-cols-1'}`}>
-                {filteredProducts.map((product, index) => (
-                  <ProductCard 
-                    key={product.id} 
-                    product={product} 
-                    viewMode={viewMode} 
-                    index={index} 
+                {sortedProducts.map((product, index) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    viewMode={viewMode}
+                    index={index}
                   />
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12 text-muted-foreground">
+              <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border">
                 <p className="text-lg mb-2">Chưa có sản phẩm nào</p>
-                <p className="text-sm">
-                  {searchQuery 
-                    ? 'Không tìm thấy sản phẩm phù hợp với tìm kiếm của bạn'
+                <p className="text-sm mb-4">
+                  {searchQuery || selectedCategory !== 'all' || priceRange !== 'all'
+                    ? 'Không tìm thấy sản phẩm phù hợp với bộ lọc hiện tại'
                     : 'Hãy là người đầu tiên đăng bán sản phẩm!'
                   }
                 </p>
+                {(searchQuery || selectedCategory !== 'all' || priceRange !== 'all') && (
+                  <Button variant="outline" onClick={clearFilters}>
+                    Xóa tất cả bộ lọc
+                  </Button>
+                )}
               </div>
             )}
 

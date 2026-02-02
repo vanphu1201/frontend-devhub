@@ -29,6 +29,7 @@ import CreateBlogPost from "./pages/CreateBlogPost";
 import EditBlogPost from "./pages/EditBlogPost";
 import CreateSeries from "./pages/CreateSeries";
 import EditSeries from "./pages/EditSeries";
+import TicketDetail from "./pages/TicketDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,7 @@ const App = () => (
                 <Route path="/register" element={<Register />} />
                 <Route path="/tribes" element={<Tribes />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/dashboard/tickets/:id" element={<TicketDetail />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

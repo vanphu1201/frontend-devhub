@@ -4,68 +4,19 @@ import { ArrowRight, Star, Download, Eye, ShoppingCart, Monitor, Tablet, Smartph
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
+import { useFeaturedProducts } from '@/hooks/useProducts';
+
 const MarketplacePreview: React.FC = () => {
-  const products = [
-    {
-      id: 1,
-      name: 'SaaS Dashboard Pro',
-      description: 'Template dashboard hoàn chỉnh cho ứng dụng SaaS với Next.js 14',
-      price: 890000,
-      originalPrice: 1200000,
-      rating: 4.9,
-      reviews: 127,
-      downloads: 2340,
-      image: '/placeholder.svg',
-      techStack: ['Next.js', 'TypeScript', 'Tailwind'],
-      isFeatured: true,
-    },
-    {
-      id: 2,
-      name: 'E-commerce Starter Kit',
-      description: 'Bộ khởi đầu hoàn chỉnh cho website bán hàng online',
-      price: 590000,
-      originalPrice: null,
-      rating: 4.7,
-      reviews: 89,
-      downloads: 1560,
-      image: '/placeholder.svg',
-      techStack: ['React', 'Node.js', 'MongoDB'],
-      isFeatured: false,
-    },
-    {
-      id: 3,
-      name: 'Admin Template Ultimate',
-      description: 'Template admin đa năng với 100+ components',
-      price: 690000,
-      originalPrice: 990000,
-      rating: 4.8,
-      reviews: 203,
-      downloads: 3890,
-      image: '/placeholder.svg',
-      techStack: ['Vue.js', 'Vuetify', 'Firebase'],
-      isFeatured: true,
-    },
-    {
-      id: 4,
-      name: 'Portfolio Creative',
-      description: 'Template portfolio sáng tạo với animation mượt mà',
-      price: 290000,
-      originalPrice: null,
-      rating: 4.6,
-      reviews: 56,
-      downloads: 890,
-      image: '/placeholder.svg',
-      techStack: ['React', 'Framer Motion', 'GSAP'],
-      isFeatured: false,
-    },
-  ];
+  const { data: products, isLoading } = useFeaturedProducts();
 
   const formatPrice = (price: number) => {
+    if (price === 0) return 'Miễn phí';
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
       currency: 'VND',
     }).format(price);
   };
+
 
   return (
     <section className="py-20 bg-muted/30">
@@ -87,7 +38,15 @@ const MarketplacePreview: React.FC = () => {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.map((product, index) => (
+          {isLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="bg-card rounded-2xl border border-border h-[400px] animate-pulse" />
+            ))
+          ) : products?.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-muted-foreground bg-card rounded-2xl border border-dashed border-border">
+              Chưa có sản phẩm nổi bật
+            </div>
+          ) : products?.map((product, index) => (
             <div
               key={product.id}
               className="group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in"
@@ -95,27 +54,35 @@ const MarketplacePreview: React.FC = () => {
             >
               {/* Preview Image */}
               <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {product.isFeatured && (
+                {product.preview_images?.[0] ? (
+                  <img
+                    src={product.preview_images[0]}
+                    alt={product.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-accent/20">
+                    <Monitor className="w-12 h-12 text-muted-foreground" />
+                  </div>
+                )}
+                {product.is_featured && (
                   <Badge variant="gradient" className="absolute top-3 left-3">
                     Featured
                   </Badge>
                 )}
-                {product.originalPrice && (
+                {product.original_price && product.original_price > product.price && (
                   <Badge variant="destructive" className="absolute top-3 right-3">
-                    -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                    -{Math.round((1 - product.price / product.original_price) * 100)}%
                   </Badge>
                 )}
-                
+
                 {/* Quick Actions */}
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                  <Button size="sm" variant="secondary" className="gap-1">
-                    <Eye className="w-4 h-4" />
-                    Preview
+                  <Button size="sm" variant="secondary" className="gap-1" asChild>
+                    <Link to={`/marketplace/${product.id}`}>
+                      <Eye className="w-4 h-4" />
+                      Preview
+                    </Link>
                   </Button>
                 </div>
 
@@ -130,7 +97,7 @@ const MarketplacePreview: React.FC = () => {
               {/* Content */}
               <div className="p-4">
                 <Link to={`/marketplace/${product.id}`}>
-                  <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
+                  <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors line-clamp-1">
                     {product.name}
                   </h3>
                 </Link>
@@ -139,7 +106,7 @@ const MarketplacePreview: React.FC = () => {
                 </p>
 
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {product.techStack.map((tech) => (
+                  {product.tech_stack?.slice(0, 3).map((tech) => (
                     <Badge key={tech} variant="outline" className="text-xs">
                       {tech}
                     </Badge>
@@ -149,13 +116,13 @@ const MarketplacePreview: React.FC = () => {
                 <div className="flex items-center gap-2 text-sm mb-3">
                   <div className="flex items-center gap-1 text-yellow-500">
                     <Star className="w-4 h-4 fill-current" />
-                    <span className="font-medium">{product.rating}</span>
+                    <span className="font-medium">{product.rating || 0}</span>
                   </div>
-                  <span className="text-muted-foreground">({product.reviews})</span>
+                  <span className="text-muted-foreground">({product.reviews_count || 0})</span>
                   <span className="text-muted-foreground">•</span>
                   <span className="flex items-center gap-1 text-muted-foreground">
                     <Download className="w-3.5 h-3.5" />
-                    {product.downloads.toLocaleString()}
+                    {(product.downloads_count || 0).toLocaleString()}
                   </span>
                 </div>
 
@@ -164,9 +131,9 @@ const MarketplacePreview: React.FC = () => {
                     <span className="text-lg font-bold text-primary">
                       {formatPrice(product.price)}
                     </span>
-                    {product.originalPrice && (
+                    {product.original_price && product.original_price > product.price && (
                       <span className="text-sm text-muted-foreground line-through ml-2">
-                        {formatPrice(product.originalPrice)}
+                        {formatPrice(product.original_price)}
                       </span>
                     )}
                   </div>

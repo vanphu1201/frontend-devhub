@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Code2, 
-  Users, 
-  Trophy, 
-  BookOpen, 
-  Download, 
-  ShoppingCart, 
-  MessageSquare, 
+import {
+  Code2,
+  Users,
+  Trophy,
+  BookOpen,
+  Download,
+  ShoppingCart,
+  MessageSquare,
   Zap,
   Shield,
   Globe
@@ -56,12 +56,7 @@ const FeaturesSection: React.FC = () => {
       description: 'Hệ thống hỗ trợ kỹ thuật cho người mua sản phẩm.',
       color: 'from-teal-500 to-cyan-500',
     },
-    {
-      icon: Zap,
-      title: 'Quiz & Assessment',
-      description: 'Tạo bài kiểm tra trắc nghiệm để đánh giá kiến thức.',
-      color: 'from-amber-500 to-yellow-500',
-    },
+
     {
       icon: Shield,
       title: 'Thanh toán an toàn',
