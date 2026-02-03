@@ -14,7 +14,7 @@ import {
     CheckCircle,
     ShieldAlert
 } from 'lucide-react';
-import { useTicket, useTicketMessages, useAddTicketMessage } from '@/hooks/useTickets';
+import { useTicket, useTicketMessages, useAddTicketMessage, useUpdateTicketStatus } from '@/hooks/useTickets';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -26,12 +26,18 @@ const TicketDetail: React.FC = () => {
     const { data: ticket, isLoading: loadingTicket } = useTicket(id || '');
     const { data: messages = [], isLoading: loadingMessages } = useTicketMessages(id || '');
     const addMessage = useAddTicketMessage();
+    const updateStatus = useUpdateTicketStatus();
+    const { isAdmin } = useAuth();
 
     const handleSendReply = () => {
         if (!reply.trim()) return;
         addMessage.mutate({ ticketId: id!, message: reply }, {
             onSuccess: () => setReply('')
         });
+    };
+
+    const handleUpdateStatus = (newStatus: any) => {
+        updateStatus.mutate({ ticketId: id!, status: newStatus });
     };
 
     if (loadingTicket || loadingMessages) {
@@ -60,11 +66,46 @@ const TicketDetail: React.FC = () => {
     return (
         <Layout>
             <div className="max-w-4xl mx-auto px-4 py-8">
-                <div className="mb-6">
-                    <Link to="/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
+                <div className="mb-6 flex items-center justify-between">
+                    <Link
+                        to={isAdmin ? "/admin" : "/dashboard"}
+                        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                        onClick={(e) => {
+                            if (isAdmin) {
+                                // If admin, we don't have a direct section link in URL, 
+                                // so we just go back and maybe the user has to click Support again.
+                                // Or we could add a state if Admin.tsx supported it via URL params.
+                            }
+                        }}
+                    >
                         <ChevronLeft className="w-4 h-4" />
-                        Quay lại Dashboard
+                        Quay lại {isAdmin ? "Admin Console" : "Dashboard"}
                     </Link>
+
+                    {isAdmin && (
+                        <div className="flex gap-2">
+                            {ticket.status !== 'resolved' && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 rounded-lg text-[11px] font-bold border-emerald-500/20 text-emerald-500 hover:bg-emerald-500 hover:text-white"
+                                    onClick={() => handleUpdateStatus('resolved')}
+                                >
+                                    Đánh dấu đã xong
+                                </Button>
+                            )}
+                            {ticket.status !== 'closed' && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 rounded-lg text-[11px] font-bold border-destructive/20 text-destructive hover:bg-destructive hover:text-white"
+                                    onClick={() => handleUpdateStatus('closed')}
+                                >
+                                    Đóng Ticket
+                                </Button>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="bg-card rounded-2xl border border-border overflow-hidden mb-8">
@@ -102,34 +143,41 @@ const TicketDetail: React.FC = () => {
                         {messages.length === 0 ? (
                             <p className="text-center text-muted-foreground italic py-10">Chưa có tin nhắn nào.</p>
                         ) : (
-                            messages.map((msg) => (
-                                <div
-                                    key={msg.id}
-                                    className={`flex gap-4 ${msg.user_id === user?.id ? 'flex-row-reverse' : ''}`}
-                                >
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${msg.user_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                                        }`}>
-                                        {msg.author?.display_name?.[0].toUpperCase() || (msg.user_id === user?.id ? 'U' : 'S')}
-                                    </div>
-                                    <div className={`max-w-[80%] p-4 rounded-2xl ${msg.user_id === user?.id
-                                        ? 'bg-primary text-primary-foreground rounded-tr-none'
-                                        : msg.is_staff_reply
-                                            ? 'bg-accent/10 border border-accent/20 rounded-tl-none'
-                                            : 'bg-muted border border-border rounded-tl-none'
-                                        }`}>
-                                        <div className="flex items-center justify-between gap-4 mb-1">
-                                            <span className="font-bold text-xs flex items-center gap-1">
-                                                {msg.user_id === user?.id ? 'Bạn' : msg.author?.display_name || 'Hỗ trợ viên'}
-                                                {msg.is_staff_reply && <Badge variant="secondary" className="text-[9px] h-4 px-1">Staff</Badge>}
-                                            </span>
-                                            <span className="text-[10px] opacity-70">
-                                                {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
+                            messages.map((msg) => {
+                                const isStaff = msg.is_staff_reply;
+                                const isMe = msg.user_id === user?.id;
+
+                                return (
+                                    <div
+                                        key={msg.id}
+                                        className={`flex gap-3 ${isStaff ? 'flex-row-reverse' : 'flex-row'} items-start animate-in fade-in slide-in-from-bottom-2 duration-300`}
+                                    >
+                                        <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-extrabold shadow-sm ${isStaff
+                                                ? 'bg-primary text-primary-foreground border-2 border-primary/20 ring-2 ring-primary/10 order-2'
+                                                : 'bg-muted border border-border order-0'
+                                            }`}>
+                                            {msg.author?.display_name?.[0].toUpperCase() || (isStaff ? 'S' : 'U')}
                                         </div>
-                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.message}</p>
+                                        <div className={`flex flex-col gap-1 max-w-[75%] ${isStaff ? 'items-end' : 'items-start'}`}>
+                                            <div className="flex items-center gap-2 px-1">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isStaff ? 'text-primary' : 'text-muted-foreground'}`}>
+                                                    {isMe ? 'Bạn' : msg.author?.display_name || (isStaff ? 'Hỗ trợ viên' : 'Khách hàng')}
+                                                </span>
+                                                {isStaff && <Badge variant="secondary" className="text-[8px] h-3.5 px-1 bg-primary text-primary-foreground border-none">Staff</Badge>}
+                                                <span className="text-[9px] text-muted-foreground/60 tabular-nums">
+                                                    {new Date(msg.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                                </span>
+                                            </div>
+                                            <div className={`p-3.5 rounded-2xl text-[13px] leading-relaxed shadow-sm ${isStaff
+                                                    ? 'bg-primary text-primary-foreground rounded-tr-none border-0'
+                                                    : 'bg-card border border-border rounded-tl-none font-medium text-foreground'
+                                                }`}>
+                                                <p className="whitespace-pre-wrap">{msg.message}</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         )}
                     </div>
 

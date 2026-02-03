@@ -135,9 +135,9 @@ const Profile: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-16 sm:-mt-20">
               {/* Avatar */}
               <div className="relative">
-                {profile.avatar_url ? (
+                {(profile.avatar_url || currentUser?.user_metadata?.avatar_url || currentUser?.user_metadata?.picture) ? (
                   <img
-                    src={profile.avatar_url}
+                    src={profile.avatar_url || currentUser?.user_metadata?.avatar_url || currentUser?.user_metadata?.picture}
                     alt={profile.display_name || profile.username || 'User'}
                     className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-4 border-background shadow-xl"
                   />

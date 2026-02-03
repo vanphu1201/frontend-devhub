@@ -187,7 +187,7 @@ export const useCreateTicket = () => {
 
 export const useAddTicketMessage = () => {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   return useMutation({
     mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
@@ -199,6 +199,7 @@ export const useAddTicketMessage = () => {
           ticket_id: ticketId,
           user_id: user.id,
           message,
+          is_staff_reply: isAdmin, // Set true if the sender is an admin
         })
         .select()
         .single();
@@ -208,11 +209,56 @@ export const useAddTicketMessage = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['ticket_messages', variables.ticketId] });
+      queryClient.invalidateQueries({ queryKey: ['admin_tickets'] });
       toast.success('Đã gửi tin nhắn!');
     },
     onError: (error) => {
       toast.error('Lỗi: ' + error.message);
     },
+  });
+};
+
+export const useAdminTickets = () => {
+  const { isAdmin } = useAuth();
+
+  return useQuery({
+    queryKey: ['admin_tickets'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch products and authors for each ticket
+      const enhancedTickets = await Promise.all(
+        (data || []).map(async (ticket) => {
+          let product = null;
+          if (ticket.product_id) {
+            const { data: productData } = await supabase
+              .from('products')
+              .select('id, name')
+              .eq('id', ticket.product_id)
+              .single();
+            product = productData;
+          }
+
+          const author = await fetchProfile(ticket.user_id);
+
+          // Get message count
+          const { count } = await supabase
+            .from('ticket_messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('ticket_id', ticket.id);
+
+          return { ...ticket, product, author, messages_count: count || 0 };
+        })
+      );
+
+      return enhancedTickets;
+    },
+    enabled: isAdmin,
   });
 };
 

@@ -17,7 +17,8 @@ import {
   LogOut,
   BookOpen,
   MessageSquare,
-  LogIn
+  LogIn,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -137,14 +138,24 @@ const Navbar: React.FC = () => {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full overflow-hidden border border-border/50">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full overflow-hidden border border-border/50 group/avatar p-0 hover:bg-transparent transition-all duration-300">
+                    {profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture ? (
+                      <img
+                        src={profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture}
+                        alt={profile?.display_name || user.email || 'User'}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover/avatar:scale-110"
+                      />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
+                      <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
                         {user.email?.charAt(0).toUpperCase() || 'U'}
                       </div>
                     )}
+                    {profileLoading && !profile && !user.user_metadata?.avatar_url && !user.user_metadata?.picture && (
+                      <div className="absolute inset-0 bg-background/50 flex items-center justify-center backdrop-blur-[2px]">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 ring-1 ring-inset ring-white/10 rounded-full pointer-events-none" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>

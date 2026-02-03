@@ -82,7 +82,7 @@ export const useUpdateProfile = () => {
       return data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
       toast.success('Cập nhật thông tin thành công!');
     },
     onError: (error) => {

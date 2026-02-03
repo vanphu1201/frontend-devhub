@@ -12,6 +12,7 @@ import {
     Series
 } from '@/hooks/useBlogPosts';
 import { useAuth } from '@/hooks/useAuth';
+import { useAdminTickets, useUpdateTicketStatus } from '@/hooks/useTickets';
 import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -30,7 +31,9 @@ import {
     Layers,
     Users,
     Library as LibraryIcon,
-    ShoppingCart
+    ShoppingCart,
+    LifeBuoy,
+    MessageSquare
 } from 'lucide-react';
 import ManageResources from '@/components/admin/ManageResources';
 import ManageProducts from '@/components/admin/ManageProducts';
@@ -38,15 +41,17 @@ import { toast } from 'sonner';
 
 const Admin: React.FC = () => {
     const { isAdmin, loading } = useAuth();
-    const [currentSection, setCurrentSection] = useState<'posts' | 'series' | 'library' | 'marketplace' | 'users'>('posts');
+    const [currentSection, setCurrentSection] = useState<'posts' | 'series' | 'library' | 'marketplace' | 'users' | 'tickets'>('posts');
 
     const { data: posts, isLoading: postsLoading } = useAdminBlogPosts({ enabled: !loading && isAdmin });
     const { data: series, isLoading: seriesLoading } = useAdminSeries({ enabled: !loading && isAdmin });
+    const { data: tickets, isLoading: ticketsLoading } = useAdminTickets();
 
     const approvePost = useApproveBlogPost();
     const approveSeries = useApproveSeries();
     const deletePost = useDeleteBlogPost();
     const deleteSeries = useDeleteSeries();
+    const updateTicketStatus = useUpdateTicketStatus();
 
     if (loading) return <div>Loading...</div>;
     if (!isAdmin) return <Navigate to="/" replace />;
@@ -96,6 +101,7 @@ const Admin: React.FC = () => {
         { id: 'series', label: 'Series', icon: Layers },
         { id: 'library', label: 'Thư viện', icon: LibraryIcon },
         { id: 'marketplace', label: 'Marketplace', icon: ShoppingCart },
+        { id: 'tickets', label: 'Hỗ trợ', icon: LifeBuoy },
         { id: 'users', label: 'Người dùng', icon: Users },
     ];
 
@@ -339,6 +345,86 @@ const Admin: React.FC = () => {
                                 </header>
                                 <div className="soft-glass rounded-3xl p-8 border border-border/40 subtle-shadow">
                                     <ManageProducts />
+                                </div>
+                            </div>
+                        )}
+
+                        {currentSection === 'tickets' && (
+                            <div className="space-y-10 gentle-reveal">
+                                <header className="flex items-end justify-between border-b border-border/40 pb-6">
+                                    <div className="space-y-1">
+                                        <h2 className="text-2xl font-bold tracking-tight text-amber-500">Support Tickets</h2>
+                                        <p className="text-sm text-muted-foreground">Respond to user inquiries and technical issues.</p>
+                                    </div>
+                                    <div className="text-[11px] font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full uppercase tracking-wider">
+                                        {tickets?.length || 0} Open
+                                    </div>
+                                </header>
+
+                                <div className="soft-glass rounded-3xl border border-border/40 overflow-hidden subtle-shadow">
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-[13px]">
+                                            <thead>
+                                                <tr className="bg-muted/30 text-muted-foreground border-b border-border/40">
+                                                    <th className="px-8 py-5 font-bold uppercase tracking-wider text-[10px]">User</th>
+                                                    <th className="px-8 py-5 font-bold uppercase tracking-wider text-[10px]">Subject</th>
+                                                    <th className="px-8 py-5 font-bold uppercase tracking-wider text-[10px]">Status</th>
+                                                    <th className="px-8 py-5 font-bold uppercase tracking-wider text-[10px]">Priority</th>
+                                                    <th className="px-8 py-5 font-bold uppercase tracking-wider text-[10px] text-right">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-border/20">
+                                                {ticketsLoading ? (
+                                                    <tr><td colSpan={5} className="px-8 py-20 text-center"><div className="w-5 h-5 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto" /></td></tr>
+                                                ) : tickets?.length === 0 ? (
+                                                    <tr><td colSpan={5} className="px-8 py-20 text-center text-muted-foreground italic">No support tickets found.</td></tr>
+                                                ) : tickets?.map((ticket) => (
+                                                    <tr key={ticket.id} className="hover:bg-amber-500/[0.02] transition-colors group">
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold">
+                                                                    {ticket.author?.display_name?.[0].toUpperCase() || 'U'}
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-semibold">{ticket.author?.display_name || 'User'}</span>
+                                                                    <span className="text-[10px] text-muted-foreground">ID: #{ticket.id.split('-')[0]}</span>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-medium group-hover:text-amber-500 transition-colors uppercase tracking-tight">{ticket.subject}</span>
+                                                                {ticket.product && (
+                                                                    <span className="text-[10px] text-primary font-bold">PROD: {ticket.product.name}</span>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            <Badge variant={ticket.status === 'open' ? 'warning' : ticket.status === 'resolved' ? 'success' : 'secondary'} className="scale-90 origin-left">
+                                                                {ticket.status === 'open' ? 'Đang chờ' : ticket.status === 'resolved' ? 'Giải quyết' : 'Đã đóng'}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-8 py-5">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-1.5 h-1.5 rounded-full ${ticket.priority === 'high' ? 'bg-destructive shadow-[0_0_8px_red]' : ticket.priority === 'medium' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                                                                <span className="text-[11px] font-bold capitalize">{ticket.priority}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-8 py-5 text-right">
+                                                            <div className="flex justify-end gap-2">
+                                                                <Button size="sm" variant="outline" className="h-8 rounded-lg text-[11px] font-bold px-3 border-amber-500/20 text-amber-500 hover:bg-amber-500 hover:text-white" asChild>
+                                                                    <Link to={`/dashboard/tickets/${ticket.id}`}>
+                                                                        <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                                                                        Trả lời
+                                                                    </Link>
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         )}
