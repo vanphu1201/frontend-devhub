@@ -3,12 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  MapPin, 
-  Link as LinkIcon, 
-  Calendar, 
-  Github, 
-  Twitter, 
+import {
+  MapPin,
+  Link as LinkIcon,
+  Calendar,
+  Github,
+  Twitter,
   Linkedin,
   Settings,
   Users,
@@ -29,6 +29,8 @@ import {
 import { useProfile, useIsFollowing, useFollowUser, useUnfollowUser } from '@/hooks/useProfile';
 import { useUserPosts, Post } from '@/hooks/usePosts';
 import { useUserProducts, Product } from '@/hooks/useProducts';
+import { useUserSeries } from '@/hooks/useBlogPosts';
+import { useUserBadges } from '@/hooks/useBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -37,17 +39,19 @@ const Profile: React.FC = () => {
   const { username } = useParams();
   const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'posts' | 'series' | 'products' | 'badges'>('posts');
-  
+
   // Determine if viewing own profile or someone else's
   const profileUserId = username || currentUser?.id;
-  
+
   const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(profileUserId);
   const { data: isFollowing } = useIsFollowing(profileUserId || '');
   const { data: userPosts, isLoading: postsLoading } = useUserPosts(profileUserId || '');
   const { data: userProducts, isLoading: productsLoading } = useUserProducts(profileUserId || '');
+  const { data: userSeries, isLoading: seriesLoading } = useUserSeries(profileUserId || '');
+  const { data: userBadges, isLoading: badgesLoading } = useUserBadges(profileUserId || '');
   const followUser = useFollowUser();
   const unfollowUser = useUnfollowUser();
-  
+
   const isOwnProfile = currentUser?.id === profileUserId;
 
   const handleFollowToggle = () => {
@@ -78,11 +82,7 @@ const Profile: React.FC = () => {
   };
 
   // Mock badges and achievements (would come from separate tables in real app)
-  const badges = [
-    { name: 'Early Adopter', type: 'bronze', icon: '🚀' },
-    { name: 'First Post', type: 'bronze', icon: '📝' },
-  ];
-
+  // Achievements (can be calculated or fetched from another hook)
   const achievements = [
     { name: 'Streak 7 ngày', progress: 50, icon: '🔥' },
     { name: 'Nhận 100 likes', progress: 25, icon: '❤️' },
@@ -118,16 +118,26 @@ const Profile: React.FC = () => {
         {/* Profile Header */}
         <div className="bg-card rounded-2xl border border-border overflow-hidden mb-8">
           {/* Cover */}
-          <div className="h-32 sm:h-48 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer" />
-          
+          <div className="h-32 sm:h-48 relative overflow-hidden bg-muted">
+            {profile.cover_url ? (
+              <img
+                src={profile.cover_url}
+                alt="Cover"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer" />
+            )}
+          </div>
+
           {/* Profile Info */}
           <div className="px-6 pb-6">
             <div className="flex flex-col sm:flex-row sm:items-end gap-4 -mt-16 sm:-mt-20">
               {/* Avatar */}
               <div className="relative">
                 {profile.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
+                  <img
+                    src={profile.avatar_url}
                     alt={profile.display_name || profile.username || 'User'}
                     className="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl object-cover border-4 border-background shadow-xl"
                   />
@@ -137,7 +147,7 @@ const Profile: React.FC = () => {
                   </div>
                 )}
                 {profile.reputation && profile.reputation > 5000 && (
-                  <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-lg border-2 border-background">
+                  <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-lg border-4 border-card shadow-lg animate-bounce-subtle">
                     👑
                   </div>
                 )}
@@ -159,7 +169,7 @@ const Profile: React.FC = () => {
                   )}
                 </div>
                 {profile.username && (
-                  <p className="text-muted-foreground">@{profile.username}</p>
+                  <p className="text-muted-foreground font-medium">@{profile.username}</p>
                 )}
               </div>
 
@@ -168,7 +178,7 @@ const Profile: React.FC = () => {
                 {isOwnProfile ? (
                   <>
                     <Button variant="gradient" className="gap-2" asChild>
-                      <Link to="/settings/profile">
+                      <Link to="/edit-profile">
                         <Edit className="w-4 h-4" />
                         Chỉnh sửa
                       </Link>
@@ -181,7 +191,7 @@ const Profile: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       variant={isFollowing ? "outline" : "gradient"}
                       onClick={handleFollowToggle}
                       disabled={followUser.isPending || unfollowUser.isPending}
@@ -200,7 +210,7 @@ const Profile: React.FC = () => {
                 {profile.bio && (
                   <p className="text-foreground mb-4">{profile.bio}</p>
                 )}
-                
+
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
                   {profile.location && (
                     <span className="flex items-center gap-1">
@@ -220,21 +230,27 @@ const Profile: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-2 mb-4">
                   {profile.github_username && (
-                    <a href={`https://github.com/${profile.github_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
-                      <Github className="w-5 h-5" />
-                    </a>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted" asChild>
+                      <a href={`https://github.com/${profile.github_username}`} target="_blank" rel="noopener noreferrer">
+                        <Github className="w-4 h-4" />
+                      </a>
+                    </Button>
                   )}
                   {profile.twitter_username && (
-                    <a href={`https://twitter.com/${profile.twitter_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
-                      <Twitter className="w-5 h-5" />
-                    </a>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted" asChild>
+                      <a href={`https://twitter.com/${profile.twitter_username}`} target="_blank" rel="noopener noreferrer">
+                        <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                      </a>
+                    </Button>
                   )}
                   {profile.linkedin_username && (
-                    <a href={`https://linkedin.com/in/${profile.linkedin_username}`} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-muted hover:bg-primary/10 hover:text-primary flex items-center justify-center transition-colors">
-                      <Linkedin className="w-5 h-5" />
-                    </a>
+                    <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted" asChild>
+                      <a href={`https://linkedin.com/in/${profile.linkedin_username}`} target="_blank" rel="noopener noreferrer">
+                        <Linkedin className="w-4 h-4 text-[#0A66C2]" />
+                      </a>
+                    </Button>
                   )}
                 </div>
 
@@ -292,11 +308,10 @@ const Profile: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-background shadow text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id
+                    ? 'bg-background shadow text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                    }`}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
@@ -400,29 +415,82 @@ const Profile: React.FC = () => {
             {/* Badges */}
             {activeTab === 'badges' && (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {badges.map((badge, index) => (
-                  <div
-                    key={index}
-                    className={`bg-card rounded-xl border border-border p-5 text-center ${
-                      badge.type === 'gold' ? 'border-yellow-500/30 bg-yellow-500/5' :
-                      badge.type === 'silver' ? 'border-gray-400/30 bg-gray-400/5' :
-                      'border-amber-600/30 bg-amber-600/5'
-                    }`}
-                  >
-                    <div className="text-4xl mb-2">{badge.icon}</div>
-                    <h4 className="font-semibold mb-1">{badge.name}</h4>
-                    <Badge variant={badge.type as any} className="text-xs">
-                      {badge.type.charAt(0).toUpperCase() + badge.type.slice(1)}
-                    </Badge>
+                {badgesLoading ? (
+                  <div className="col-span-full flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
-                ))}
+                ) : userBadges && userBadges.length > 0 ? (
+                  userBadges.map((userBadge) => (
+                    <div
+                      key={userBadge.id}
+                      className={`bg-card rounded-xl border border-border p-5 text-center transition-all hover:scale-105 ${userBadge.badge?.type === 'gold' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                        userBadge.badge?.type === 'silver' ? 'border-gray-400/30 bg-gray-400/5' :
+                          userBadge.badge?.type === 'bronze' ? 'border-amber-600/30 bg-amber-600/5' :
+                            'border-primary/30 bg-primary/5'
+                        }`}
+                    >
+                      <div className="text-4xl mb-2">
+                        {userBadge.badge?.icon ? (
+                          <span className="text-5xl">{userBadge.badge.icon}</span>
+                        ) : (
+                          '🏅'
+                        )}
+                      </div>
+                      <h4 className="font-semibold mb-1">{userBadge.badge?.name || 'Huy hiệu'}</h4>
+                      <Badge variant={(userBadge.badge?.type === 'gold' || userBadge.badge?.type === 'silver' || userBadge.badge?.type === 'bronze') ? userBadge.badge.type as any : 'secondary'} className="text-xs">
+                        {userBadge.badge?.type || 'Standard'}
+                      </Badge>
+                      <div className="mt-2 text-[10px] text-muted-foreground uppercase tracking-widest">
+                        {userBadge.awarded_at ? new Date(userBadge.awarded_at).toLocaleDateString('vi-VN') : 'Mới nhận'}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                    Chưa có huy hiệu nào
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Series placeholder */}
+            {/* Series */}
             {activeTab === 'series' && (
-              <div className="text-center py-12 text-muted-foreground">
-                Chưa có series nào
+              <div className="space-y-4">
+                {seriesLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : userSeries && userSeries.length > 0 ? (
+                  userSeries.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={`/blog/series/${item.id}`}
+                      className="group bg-card rounded-2xl border border-border overflow-hidden card-hover shadow-sm flex h-32"
+                    >
+                      <div className="w-48 bg-muted flex-shrink-0 relative overflow-hidden">
+                        <img
+                          src={item.thumbnail_url || '/placeholder.svg'}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                        <Badge variant="gradient" className="absolute top-2 left-2 text-[10px]">Series</Badge>
+                      </div>
+                      <div className="flex-1 p-5 flex flex-col justify-center">
+                        <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {item.description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                    Chưa có series nào
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -461,16 +529,20 @@ const Profile: React.FC = () => {
                 <Zap className="w-5 h-5 text-accent" />
                 Hoạt động gần đây
               </h3>
-              <div className="space-y-3 text-sm text-muted-foreground">
+              <div className="space-y-4">
                 {userPosts && userPosts.length > 0 ? (
-                  userPosts.slice(0, 3).map((post, index) => (
-                    <div key={post.id} className="flex items-center justify-between">
-                      <span>Đăng bài viết mới</span>
-                      <span className="text-xs">{formatTime(post.created_at)}</span>
+                  userPosts.slice(0, 5).map((post, index) => (
+                    <div key={post.id} className="relative pl-4 border-l-2 border-muted pb-4 last:pb-0">
+                      <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-muted border-4 border-card" />
+                      <div className="text-sm font-medium mb-0.5">Đã đăng trên bảng tin</div>
+                      <div className="text-xs text-muted-foreground mb-2 line-clamp-1">{post.content}</div>
+                      <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">{formatTime(post.created_at)}</div>
                     </div>
                   ))
                 ) : (
-                  <p>Chưa có hoạt động</p>
+                  <div className="text-center py-4 text-muted-foreground text-sm italic">
+                    Chưa có hoạt động nào được ghi lại
+                  </div>
                 )}
               </div>
             </div>

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { 
-  Code2, 
-  Home, 
-  Newspaper, 
-  ShoppingBag, 
-  Users, 
-  Bell, 
-  Search, 
-  Menu, 
-  X, 
-  Sun, 
+import {
+  Code2,
+  Home,
+  Newspaper,
+  ShoppingBag,
+  Users,
+  Bell,
+  Search,
+  Menu,
+  X,
+  Sun,
   Moon,
   User,
   Settings,
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +36,8 @@ import { toast } from 'sonner';
 
 const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut, loading: authLoading } = useAuth();
+  const { data: profile, isLoading: profileLoading } = useProfile(user?.id);
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -47,7 +49,6 @@ const Navbar: React.FC = () => {
     { path: '/blog', label: 'Blog', icon: Newspaper },
     { path: '/library', label: 'Thư viện', icon: BookOpen },
     { path: '/marketplace', label: 'Marketplace', icon: ShoppingBag },
-    { path: '/tribes', label: 'Tribes', icon: Users },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -78,11 +79,10 @@ const Navbar: React.FC = () => {
               <Link
                 key={link.path}
                 to={link.path}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive(link.path)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isActive(link.path)
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  }`}
               >
                 <link.icon className="w-4 h-4" />
                 {link.label}
@@ -137,24 +137,28 @@ const Navbar: React.FC = () => {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
-                      {user.email?.charAt(0).toUpperCase() || 'U'}
-                    </div>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full overflow-hidden border border-border/50">
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
+                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.user_metadata?.display_name || user.email?.split('@')[0]}
+                        {profile?.display_name || user.user_metadata?.display_name || user.email?.split('@')[0]}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user.email}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <Badge variant="reputation" className="text-xs">
-                          ⭐ 0 RP
+                          ⭐ {profile?.reputation || 0} RP
                         </Badge>
                       </div>
                     </div>
@@ -179,7 +183,7 @@ const Navbar: React.FC = () => {
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="text-destructive focus:text-destructive cursor-pointer"
                     onClick={handleSignOut}
                   >
@@ -226,18 +230,17 @@ const Navbar: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2 rounded-lg bg-muted/50 border border-border focus:border-primary outline-none text-sm"
               />
             </div>
-            
+
             <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                    isActive(link.path)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted'
-                  }`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${isActive(link.path)
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted'
+                    }`}
                 >
                   <link.icon className="w-5 h-5" />
                   {link.label}

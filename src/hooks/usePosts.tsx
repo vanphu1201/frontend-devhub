@@ -8,6 +8,7 @@ export interface Post {
   user_id: string;
   content: string;
   image_url?: string | null;
+  image_size?: string | null;
   tags?: string[] | null;
   likes_count: number;
   comments_count: number;
@@ -29,6 +30,7 @@ export interface Comment {
   user_id: string;
   content: string;
   image_url?: string | null;
+  image_size?: string | null;
   parent_id?: string | null;
   likes_count: number;
   created_at: string;
@@ -156,7 +158,7 @@ export const useCreatePost = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ content, tags, image_url }: { content: string, tags: string[], image_url?: string | null }) => {
+    mutationFn: async ({ content, tags, image_url, image_size }: { content: string, tags: string[], image_url?: string | null, image_size?: string | null }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -166,6 +168,7 @@ export const useCreatePost = () => {
           content,
           tags,
           image_url,
+          image_size: image_size || 'full'
         })
         .select()
         .single();
@@ -446,11 +449,14 @@ export const useIsCommentLiked = (commentId: string) => {
 };
 
 export const useUploadCommentImage = () => {
+  const { user } = useAuth();
+
   return useMutation({
     mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error('Not authenticated');
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `comment-images/${fileName}`;
+      const filePath = `comments/${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('posts')
@@ -557,11 +563,14 @@ export const useSharePost = () => {
 };
 
 export const useUploadPostImage = () => {
+  const { user } = useAuth();
+
   return useMutation({
     mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error('Not authenticated');
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const filePath = `posts/${user.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('posts')

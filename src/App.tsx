@@ -16,8 +16,9 @@ import ProductDetail from "./pages/ProductDetail";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import Tribes from "./pages/Tribes";
 import Dashboard from "./pages/Dashboard";
+import EditProfile from "./pages/EditProfile";
+import Settings from "./pages/Settings";
 import Leaderboard from "./pages/Leaderboard";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -60,8 +61,10 @@ const App = () => (
                 <Route path="/profile/:username" element={<Profile />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
-                <Route path="/tribes" element={<Tribes />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/edit-profile" element={<EditProfile />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings/profile" element={<Settings />} />
                 <Route path="/dashboard/tickets/:id" element={<TicketDetail />} />
                 <Route path="/leaderboard" element={<Leaderboard />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />

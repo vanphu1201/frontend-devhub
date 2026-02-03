@@ -5,7 +5,6 @@ import FeaturesSection from '@/components/home/FeaturesSection';
 import TrendingSection from '@/components/home/TrendingSection';
 import MarketplacePreview from '@/components/home/MarketplacePreview';
 import TopContributors from '@/components/home/TopContributors';
-import TribesSection from '@/components/home/TribesSection';
 import CTASection from '@/components/home/CTASection';
 
 const Index: React.FC = () => {
@@ -16,7 +15,6 @@ const Index: React.FC = () => {
       <TrendingSection />
       <MarketplacePreview />
       <TopContributors />
-      <TribesSection />
       <CTASection />
     </Layout>
   );

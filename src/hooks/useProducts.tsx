@@ -376,7 +376,7 @@ export const useProductReviews = (productId: string) => {
   return useQuery({
     queryKey: ['product_reviews', productId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('product_reviews')
         .select('*')
         .eq('product_id', productId)
@@ -405,7 +405,7 @@ export const useAddReview = () => {
     mutationFn: async (input: { productId: string; rating: number; comment: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('product_reviews')
         .upsert({
           product_id: input.productId,

@@ -277,6 +277,8 @@ export type Database = {
           created_at: string | null
           id: string
           likes_count: number | null
+          image_url: string | null
+          image_size: string | null
           parent_id: string | null
           post_id: string
           updated_at: string | null
@@ -287,6 +289,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           likes_count?: number | null
+          image_url?: string | null
+          image_size?: string | null
           parent_id?: string | null
           post_id: string
           updated_at?: string | null
@@ -297,6 +301,8 @@ export type Database = {
           created_at?: string | null
           id?: string
           likes_count?: number | null
+          image_url?: string | null
+          image_size?: string | null
           parent_id?: string | null
           post_id?: string
           updated_at?: string | null
@@ -382,6 +388,8 @@ export type Database = {
           updated_at: string | null
           user_id: string
           views_count: number | null
+          image_url: string | null
+          image_size: string | null
         }
         Insert: {
           comments_count?: number | null
@@ -395,6 +403,8 @@ export type Database = {
           updated_at?: string | null
           user_id: string
           views_count?: number | null
+          image_url?: string | null
+          image_size?: string | null
         }
         Update: {
           comments_count?: number | null
@@ -408,6 +418,8 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
           views_count?: number | null
+          image_url?: string | null
+          image_size?: string | null
         }
         Relationships: []
       }

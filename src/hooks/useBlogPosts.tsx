@@ -507,6 +507,25 @@ export const useUserBlogPosts = (userId: string) => {
   });
 };
 
+export const useUserSeries = (userId: string) => {
+  return useQuery({
+    queryKey: ['series', 'user', userId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('series')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const author = await fetchProfile(userId);
+      return (data || []).map(item => ({ ...item, author })) as Series[];
+    },
+    enabled: !!userId,
+  });
+};
+
 export const useCreateBlogPost = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();

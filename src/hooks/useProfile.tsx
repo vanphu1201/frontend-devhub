@@ -9,6 +9,7 @@ export interface Profile {
   username: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  cover_url: string | null;
   bio: string | null;
   location: string | null;
   website: string | null;
@@ -31,7 +32,7 @@ export const useProfile = (userId?: string) => {
     queryKey: ['profile', targetUserId],
     queryFn: async () => {
       if (!targetUserId) return null;
-      
+
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -161,5 +162,61 @@ export const useIsFollowing = (targetUserId: string) => {
       return !!data;
     },
     enabled: !!user?.id && !!targetUserId && user.id !== targetUserId,
+  });
+};
+
+export const useUploadAvatar = () => {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `avatars/${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    },
+    onError: (error) => {
+      toast.error('Lỗi tải ảnh đại diện: ' + error.message);
+    },
+  });
+};
+
+export const useUploadCover = () => {
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `covers/${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    },
+    onError: (error) => {
+      toast.error('Lỗi tải ảnh bìa: ' + error.message);
+    },
   });
 };

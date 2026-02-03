@@ -23,6 +23,7 @@ import {
   Trophy
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import {
   usePosts,
   useCreatePost,
@@ -166,13 +167,20 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
       {/* Post Content */}
       <div className="px-6 pb-4">
         <ContentRenderer content={post.content} />
-        {post.image_url && (
-          <div className="mt-4 rounded-xl overflow-hidden border border-border">
-            <img
-              src={post.image_url}
-              alt="Post content"
-              className="w-full h-auto object-cover max-h-[500px]"
-            />
+
+        {/* Post Image (Fallback - at bottom) */}
+        {post.image_url && !post.content.includes(post.image_url) && (
+          <div className={`mt-6 ${post.image_size === 'small' ? 'max-w-[300px]' :
+            post.image_size === 'medium' ? 'max-w-[500px]' :
+              'w-full'
+            }`}>
+            <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+              <img
+                src={post.image_url}
+                alt="Post content"
+                className="w-full h-auto object-cover max-h-[600px] hover:scale-[1.01] transition-transform duration-500"
+              />
+            </div>
           </div>
         )}
         {post.tags && post.tags.length > 0 && (
@@ -265,10 +273,12 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 
 const Feed: React.FC = () => {
   const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
   const [postContent, setPostContent] = useState('');
   const [activeTab, setActiveTab] = useState<'trending' | 'latest' | 'following'>('latest');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageSize, setImageSize] = useState<'small' | 'medium' | 'full'>('full');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: posts, isLoading, error } = usePosts(activeTab);
@@ -295,11 +305,17 @@ const Feed: React.FC = () => {
       // Extract hashtags from content
       const tags = postContent.match(/#(\w+)/g)?.map(tag => tag.slice(1)) || [];
 
-      createPost.mutate({ content: postContent, tags, image_url: imageUrl }, {
+      createPost.mutate({
+        content: postContent,
+        tags,
+        image_url: imageUrl,
+        image_size: imageUrl ? imageSize : null
+      }, {
         onSuccess: () => {
           setPostContent('');
           setSelectedImage(null);
           setImagePreview(null);
+          setImageSize('full');
         }
       });
     } catch (err) {
@@ -360,6 +376,35 @@ const Feed: React.FC = () => {
     }, 0);
   };
 
+  const handleInsertImageToContent = async () => {
+    if (!selectedImage) return;
+
+    setIsSubmitting(true);
+    try {
+      const imageUrl = await uploadImage.mutateAsync(selectedImage);
+      const markdown = `\n![Mô tả ảnh](${imageUrl})\n`;
+
+      const textarea = document.getElementById('post-textarea') as HTMLTextAreaElement;
+      if (!textarea) return;
+
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+
+      setPostContent(before + markdown + after);
+      setSelectedImage(null);
+      setImagePreview(null);
+
+      toast.success('Đã chèn ảnh vào vị trí con trỏ!');
+    } catch (err) {
+      // Error handled by mutation
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const trendingTopics = [
     { tag: 'React', posts: 1234 },
     { tag: 'TypeScript', posts: 987 },
@@ -383,8 +428,14 @@ const Feed: React.FC = () => {
             {/* Create Post */}
             <div className="bg-card rounded-2xl border border-border p-6 shadow-sm">
               <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg flex-shrink-0 shadow-lg">
-                  {getInitial()}
+                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 shadow-lg border border-border/50">
+                  {profile?.avatar_url ? (
+                    <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
+                      {getInitial()}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <textarea
@@ -397,22 +448,71 @@ const Feed: React.FC = () => {
                   />
 
                   {imagePreview && (
-                    <div className="relative mt-4 rounded-xl overflow-hidden border border-border group animate-fade-in">
-                      <img src={imagePreview} alt="Preview" className="w-full h-64 object-cover" />
-                      <button
-                        onClick={() => { setSelectedImage(null); setImagePreview(null); }}
-                        className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-destructive hover:text-white transition-colors"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
+                    <div className="mt-4 p-4 rounded-2xl bg-muted/20 border border-border/50 animate-in fade-in zoom-in-95 duration-300">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="text-[10px] font-bold text-primary/70 uppercase tracking-widest">Kích thước ảnh</div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={handleInsertImageToContent}
+                            disabled={isSubmitting}
+                            className="mr-2 px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded-md text-[10px] font-bold transition-all flex items-center gap-1"
+                          >
+                            <Send className="w-3 h-3" />
+                            Chèn vào bài viết
+                          </button>
+                          <div className="flex bg-background/50 p-1 rounded-lg border border-border/50">
+                            {(['small', 'medium', 'full'] as const).map((size) => (
+                              <button
+                                key={size}
+                                onClick={() => setImageSize(size)}
+                                className={`px-3 py-1 rounded-md text-[10px] font-bold capitalize transition-all ${imageSize === size
+                                  ? 'bg-primary text-primary-foreground shadow-sm'
+                                  : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                              >
+                                {size === 'small' ? 'Nhỏ' : size === 'medium' ? 'Vừa' : 'Gốc'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className={`relative rounded-xl overflow-hidden border border-border group transition-all duration-300 ${imageSize === 'small' ? 'max-w-[150px]' :
+                        imageSize === 'medium' ? 'max-w-[250px]' :
+                          'w-full'
+                        }`}>
+                        <img src={imagePreview} alt="Preview" className="w-full h-auto object-cover max-h-[300px]" />
+                        <button
+                          onClick={() => { setSelectedImage(null); setImagePreview(null); }}
+                          className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 duration-200"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   )}
 
-                  {/* Live Preview for Code/Formatting */}
-                  {postContent.includes('```') && (
-                    <div className="mt-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold mb-2">Xem trước bài đăng</div>
-                      <ContentRenderer content={postContent} className="opacity-80" />
+                  {/* Enhanced Live Preview */}
+                  {(postContent.trim() || imagePreview) && (
+                    <div className="mt-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/10 border-dashed">
+                      <div className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <div className="w-1 h-1 rounded-full bg-primary" />
+                        Xem trước bài đăng
+                      </div>
+
+                      {/* Preview Image - Matches PostCard logic */}
+                      {imagePreview && (
+                        <div className={`mb-4 ${imageSize === 'small' ? 'max-w-[200px]' :
+                          imageSize === 'medium' ? 'max-w-[350px]' :
+                            'w-full'
+                          }`}>
+                          <div className="rounded-xl overflow-hidden border border-border shadow-sm">
+                            <img src={imagePreview} alt="Preview" className="w-full h-auto object-cover max-h-[400px]" />
+                          </div>
+                        </div>
+                      )}
+
+                      <ContentRenderer content={postContent || "Văn bản bài đăng..."} className="opacity-80" />
                     </div>
                   )}
 

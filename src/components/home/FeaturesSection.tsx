@@ -27,12 +27,6 @@ const FeaturesSection: React.FC = () => {
       color: 'from-yellow-500 to-orange-500',
     },
     {
-      icon: Users,
-      title: 'Tribes & Guilds',
-      description: 'Tạo và tham gia các nhóm theo công nghệ như React, Node.js, Python...',
-      color: 'from-purple-500 to-pink-500',
-    },
-    {
       icon: BookOpen,
       title: 'Series & Roadmap',
       description: 'Tổ chức bài viết thành chuỗi học tập có hệ thống, dễ theo dõi.',
