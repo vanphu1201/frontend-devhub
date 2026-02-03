@@ -38,7 +38,6 @@ export const renderContent = (content: string) => {
         }
 
         // Phase 2: Handle regular text split by blocks (images, paragraphs, etc.)
-        // First, extract images as separate blocks to avoid nesting them in <p>
         const blockParts = part.split(/(!\[.*?\]\(.*?\))/g);
 
         const renderFormattedText = (text: string) => {
@@ -67,16 +66,36 @@ export const renderContent = (content: string) => {
             if (block.startsWith('![') && block.includes('](')) {
                 const match = block.match(/!\[(.*?)\]\((.*?)\)/);
                 if (match) {
+                    const altContent = match[1];
+                    const imageUrl = match[2];
+
+                    // Parse width if present: ![Alt|75](url)
+                    let displayWidth = '100%';
+                    let cleanAlt = altContent;
+
+                    if (altContent.includes('|')) {
+                        const parts = altContent.split('|');
+                        const widthStr = parts[parts.length - 1];
+                        if (!isNaN(parseInt(widthStr))) {
+                            displayWidth = `${widthStr}%`;
+                            cleanAlt = parts.slice(0, -1).join('|');
+                        }
+                    }
+
                     return (
-                        <div key={blockKey} className="my-6 rounded-2xl overflow-hidden border border-border bg-muted/5 shadow-sm group">
+                        <div
+                            key={blockKey}
+                            className="my-6 rounded-2xl overflow-hidden border border-border bg-muted/5 shadow-sm group mx-auto"
+                            style={{ width: displayWidth }}
+                        >
                             <img
-                                src={match[2]}
-                                alt={match[1]}
-                                className="w-full h-auto object-cover max-h-[600px] hover:scale-[1.01] transition-transform duration-500"
+                                src={imageUrl}
+                                alt={cleanAlt}
+                                className="w-full h-auto object-cover max-h-[800px] hover:scale-[1.01] transition-transform duration-500"
                             />
-                            {match[1] && (
+                            {cleanAlt && cleanAlt !== 'Ảnh' && cleanAlt !== 'Mô tả ảnh' && (
                                 <div className="px-4 py-2 text-[11px] text-muted-foreground italic border-t border-border/10 bg-muted/5 text-center">
-                                    {match[1]}
+                                    {cleanAlt}
                                 </div>
                             )}
                         </div>
@@ -209,7 +228,6 @@ export const renderContent = (content: string) => {
                 );
             });
 
-            // Final push for alerts/quotes in this block
             pushAccumulated('final');
             return result;
         });

@@ -44,6 +44,7 @@ import CodeBlock from '@/components/ui/CodeBlock';
 import CommentDialog from '@/components/home/CommentDialog';
 import PostMenu from '@/components/home/PostMenu';
 import ContentRenderer from '@/components/ui/ContentRenderer';
+import VisualBlockEditor, { EditorBlock } from '@/components/ui/VisualBlockEditor';
 
 export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
   const { user } = useAuth();
@@ -274,11 +275,10 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
 const Feed: React.FC = () => {
   const { user } = useAuth();
   const { data: profile } = useProfile(user?.id);
-  const [postContent, setPostContent] = useState('');
+  const [blocks, setBlocks] = useState<EditorBlock[]>([
+    { id: '1', type: 'text', content: '' }
+  ]);
   const [activeTab, setActiveTab] = useState<'trending' | 'latest' | 'following'>('latest');
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageSize, setImageSize] = useState<'small' | 'medium' | 'full'>('full');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { data: posts, isLoading, error } = usePosts(activeTab);
@@ -290,32 +290,55 @@ const Feed: React.FC = () => {
       toast.error('Vui lòng đăng nhập để đăng bài');
       return;
     }
-    if (!postContent.trim() && !selectedImage) {
-      toast.error('Vui lòng nhập nội dung bài viết hoặc thêm ảnh');
+
+    const hasContent = blocks.some(b =>
+      (b.type === 'text' && b.content.trim()) ||
+      (b.type === 'image' && b.url)
+    );
+
+    if (!hasContent) {
+      toast.error('Vui lòng nhập nội dung bài viết');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      let imageUrl = null;
-      if (selectedImage) {
-        imageUrl = await uploadImage.mutateAsync(selectedImage);
-      }
+      // 1. Convert blocks to Markdown content
+      let contentMarkdown = "";
+      let firstImageUrl = null;
+      let firstImageSize = 'full';
 
-      // Extract hashtags from content
-      const tags = postContent.match(/#(\w+)/g)?.map(tag => tag.slice(1)) || [];
+      blocks.forEach(block => {
+        if (block.type === 'text') {
+          contentMarkdown += block.content + "\n\n";
+        } else if (block.type === 'image' && block.url) {
+          if (!firstImageUrl) {
+            firstImageUrl = block.url;
+            // Map percentage width to predefined sizes for legacy support
+            firstImageSize = block.width < 40 ? 'small' : block.width < 70 ? 'medium' : 'full';
+          }
+          // Store width in alt text: ![Alt|Width](url)
+          contentMarkdown += `![Ảnh|${Math.round(block.width)}](${block.url})\n\n`;
+        }
+      });
+
+      const finalContent = contentMarkdown.trim();
+
+      // Extract hashtags from all text blocks
+      const allText = blocks
+        .filter(b => b.type === 'text')
+        .map(b => (b as any).content)
+        .join(' ');
+      const tags = allText.match(/#(\w+)/g)?.map(tag => tag.slice(1)) || [];
 
       createPost.mutate({
-        content: postContent,
+        content: finalContent,
         tags,
-        image_url: imageUrl,
-        image_size: imageUrl ? imageSize : null
+        image_url: firstImageUrl,
+        image_size: firstImageSize
       }, {
         onSuccess: () => {
-          setPostContent('');
-          setSelectedImage(null);
-          setImagePreview(null);
-          setImageSize('full');
+          setBlocks([{ id: '1', type: 'text', content: '' }]);
         }
       });
     } catch (err) {
@@ -325,84 +348,8 @@ const Feed: React.FC = () => {
     }
   };
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Kích thước ảnh không được vượt quá 5MB');
-        return;
-      }
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const insertFormat = (format: string) => {
-    const textarea = document.getElementById('post-textarea') as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    const before = text.substring(0, start);
-    const after = text.substring(end, text.length);
-
-    let newText = '';
-    let newCursorPos = start;
-
-    switch (format) {
-      case 'code':
-        newText = before + '```\n\n```' + after;
-        newCursorPos = start + 4;
-        break;
-      case 'hash':
-        newText = before + '#' + after;
-        newCursorPos = start + 1;
-        break;
-      case 'at':
-        newText = before + '@' + after;
-        newCursorPos = start + 1;
-        break;
-    }
-
-    setPostContent(newText);
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleInsertImageToContent = async () => {
-    if (!selectedImage) return;
-
-    setIsSubmitting(true);
-    try {
-      const imageUrl = await uploadImage.mutateAsync(selectedImage);
-      const markdown = `\n![Mô tả ảnh](${imageUrl})\n`;
-
-      const textarea = document.getElementById('post-textarea') as HTMLTextAreaElement;
-      if (!textarea) return;
-
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const text = textarea.value;
-      const before = text.substring(0, start);
-      const after = text.substring(end, text.length);
-
-      setPostContent(before + markdown + after);
-      setSelectedImage(null);
-      setImagePreview(null);
-
-      toast.success('Đã chèn ảnh vào vị trí con trỏ!');
-    } catch (err) {
-      // Error handled by mutation
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleImageUpload = (file: File) => {
+    return uploadImage.mutateAsync(file);
   };
 
   const trendingTopics = [
@@ -438,125 +385,18 @@ const Feed: React.FC = () => {
                   )}
                 </div>
                 <div className="flex-1">
-                  <textarea
-                    id="post-textarea"
-                    value={postContent}
-                    onChange={(e) => setPostContent(e.target.value)}
-                    placeholder={user ? "Chia sẻ kiến thức, đặt câu hỏi hoặc viết code..." : "Đăng nhập để chia sẻ..."}
-                    className="w-full min-h-[120px] bg-transparent border-none outline-none resize-none text-foreground placeholder:text-muted-foreground text-lg leading-relaxed pt-2"
-                    disabled={!user}
+                  <VisualBlockEditor
+                    blocks={blocks}
+                    onChange={setBlocks}
+                    onUploadImage={handleImageUpload}
                   />
-
-                  {imagePreview && (
-                    <div className="mt-4 p-4 rounded-2xl bg-muted/20 border border-border/50 animate-in fade-in zoom-in-95 duration-300">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="text-[10px] font-bold text-primary/70 uppercase tracking-widest">Kích thước ảnh</div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={handleInsertImageToContent}
-                            disabled={isSubmitting}
-                            className="mr-2 px-3 py-1 bg-primary/10 text-primary hover:bg-primary/20 rounded-md text-[10px] font-bold transition-all flex items-center gap-1"
-                          >
-                            <Send className="w-3 h-3" />
-                            Chèn vào bài viết
-                          </button>
-                          <div className="flex bg-background/50 p-1 rounded-lg border border-border/50">
-                            {(['small', 'medium', 'full'] as const).map((size) => (
-                              <button
-                                key={size}
-                                onClick={() => setImageSize(size)}
-                                className={`px-3 py-1 rounded-md text-[10px] font-bold capitalize transition-all ${imageSize === size
-                                  ? 'bg-primary text-primary-foreground shadow-sm'
-                                  : 'text-muted-foreground hover:text-foreground'
-                                  }`}
-                              >
-                                {size === 'small' ? 'Nhỏ' : size === 'medium' ? 'Vừa' : 'Gốc'}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className={`relative rounded-xl overflow-hidden border border-border group transition-all duration-300 ${imageSize === 'small' ? 'max-w-[150px]' :
-                        imageSize === 'medium' ? 'max-w-[250px]' :
-                          'w-full'
-                        }`}>
-                        <img src={imagePreview} alt="Preview" className="w-full h-auto object-cover max-h-[300px]" />
-                        <button
-                          onClick={() => { setSelectedImage(null); setImagePreview(null); }}
-                          className="absolute top-2 right-2 bg-background/80 backdrop-blur-sm p-1.5 rounded-full hover:bg-destructive hover:text-white transition-colors opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 duration-200"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Enhanced Live Preview */}
-                  {(postContent.trim() || imagePreview) && (
-                    <div className="mt-4 p-5 rounded-2xl bg-primary/[0.02] border border-primary/10 border-dashed">
-                      <div className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <div className="w-1 h-1 rounded-full bg-primary" />
-                        Xem trước bài đăng
-                      </div>
-
-                      {/* Preview Image - Matches PostCard logic */}
-                      {imagePreview && (
-                        <div className={`mb-4 ${imageSize === 'small' ? 'max-w-[200px]' :
-                          imageSize === 'medium' ? 'max-w-[350px]' :
-                            'w-full'
-                          }`}>
-                          <div className="rounded-xl overflow-hidden border border-border shadow-sm">
-                            <img src={imagePreview} alt="Preview" className="w-full h-auto object-cover max-h-[400px]" />
-                          </div>
-                        </div>
-                      )}
-
-                      <ContentRenderer content={postContent || "Văn bản bài đăng..."} className="opacity-80" />
-                    </div>
-                  )}
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-6 border-t border-border/50 mt-4 gap-4">
                     <div className="flex items-center gap-4">
-                      <input
-                        type="file"
-                        id="image-input"
-                        className="hidden"
-                        accept="image/*"
-                        onChange={handleImageSelect}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        onClick={() => document.getElementById('image-input')?.click()}
-                      >
-                        <Image className="w-6 h-6" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        onClick={() => insertFormat('code')}
-                      >
-                        <Code className="w-6 h-6" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        onClick={() => insertFormat('hash')}
-                      >
-                        <Hash className="w-6 h-6" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        onClick={() => insertFormat('at')}
-                      >
-                        <AtSign className="w-6 h-6" />
-                      </Button>
+                      {/* Formats can be added back if we handle them in blocks */}
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                        Visual Editor Mode
+                      </span>
                     </div>
 
                     {user ? (
@@ -564,7 +404,7 @@ const Feed: React.FC = () => {
                         variant="gradient"
                         className="gap-2 px-8 py-6 rounded-xl shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                         onClick={handleCreatePost}
-                        disabled={isSubmitting || createPost.isPending || (!postContent.trim() && !selectedImage)}
+                        disabled={isSubmitting || createPost.isPending}
                       >
                         {isSubmitting || createPost.isPending ? (
                           <Loader2 className="w-5 h-5 animate-spin" />
