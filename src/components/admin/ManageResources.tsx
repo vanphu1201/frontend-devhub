@@ -20,7 +20,8 @@ import {
     Loader2,
     X,
     Save,
-    CheckCircle2
+    CheckCircle2,
+    Coins
 } from 'lucide-react';
 import {
     Dialog,
@@ -61,6 +62,7 @@ const ManageResources: React.FC = () => {
         file_size: '',
         is_premium: false,
         price: 0,
+        points_price: 0,
     });
 
     const handleOpenCreate = () => {
@@ -74,6 +76,7 @@ const ManageResources: React.FC = () => {
             file_size: '',
             is_premium: false,
             price: 0,
+            points_price: 0,
         });
         setIsDialogOpen(true);
     };
@@ -89,6 +92,7 @@ const ManageResources: React.FC = () => {
             file_size: resource.file_size || '',
             is_premium: resource.is_premium || false,
             price: resource.price || 0,
+            points_price: resource.points_price || 0,
         });
         setIsDialogOpen(true);
     };
@@ -186,9 +190,15 @@ const ManageResources: React.FC = () => {
                                     <td className="px-6 py-4 capitalize">{resource.category || 'Chung'}</td>
                                     <td className="px-6 py-4">
                                         {resource.is_premium ? (
-                                            <Badge variant="gradient" className="gap-1">
-                                                Premium - {resource.price?.toLocaleString()}đ
-                                            </Badge>
+                                            <div className="flex flex-col gap-1">
+                                                <Badge variant="gradient" className="gap-1 whitespace-nowrap">
+                                                    {resource.price?.toLocaleString()} VNĐ
+                                                </Badge>
+                                                <Badge variant="outline" className="gap-1 text-orange-500 border-orange-200 bg-orange-50 whitespace-nowrap">
+                                                    <Coins className="w-3 h-3" />
+                                                    {resource.points_price?.toLocaleString()} CP
+                                                </Badge>
+                                            </div>
                                         ) : (
                                             <Badge variant="success">Miễn phí</Badge>
                                         )}
@@ -313,16 +323,29 @@ const ManageResources: React.FC = () => {
                             />
                         </div>
                         {formData.is_premium && (
-                            <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                                <Label htmlFor="price">Giá bán (VNĐ)</Label>
-                                <Input
-                                    id="price"
-                                    type="number"
-                                    placeholder="VD: 50000"
-                                    value={formData.price}
-                                    onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-                                    className="rounded-xl"
-                                />
+                            <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
+                                <div className="space-y-2">
+                                    <Label htmlFor="price">Giá bán (VNĐ)</Label>
+                                    <Input
+                                        id="price"
+                                        type="number"
+                                        placeholder="VD: 50000"
+                                        value={formData.price}
+                                        onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                                        className="rounded-xl"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="points_price">Giá điểm (CP)</Label>
+                                    <Input
+                                        id="points_price"
+                                        type="number"
+                                        placeholder="VD: 50"
+                                        value={formData.points_price}
+                                        onChange={(e) => setFormData({ ...formData, points_price: Number(e.target.value) })}
+                                        className="rounded-xl"
+                                    />
+                                </div>
                             </div>
                         )}
                         <DialogFooter className="pt-4">

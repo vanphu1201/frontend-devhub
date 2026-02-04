@@ -38,7 +38,8 @@ const CommentItem: React.FC<{
     comment: Comment;
     postId: string;
     onReply: (comment: Comment) => void;
-}> = ({ comment, postId, onReply }) => {
+    allComments: Comment[];
+}> = ({ comment, postId, onReply, allComments = [] }) => {
     const { user } = useAuth();
     const { data: isLiked } = useIsCommentLiked(comment.id);
     const likeComment = useLikeComment();
@@ -61,51 +62,70 @@ const CommentItem: React.FC<{
         }
     };
 
+    const replies = allComments.filter(c => c.parent_id === comment.id);
+
     return (
-        <div className="flex gap-4 group">
-            {comment.author?.avatar_url ? (
-                <img
-                    src={comment.author.avatar_url}
-                    alt="Avatar"
-                    className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
-                />
-            ) : (
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold">
-                    {comment.author?.display_name?.[0]?.toUpperCase() || 'U'}
-                </div>
-            )}
-            <div className="flex-1">
-                <div className="bg-muted/40 rounded-2xl px-5 py-3 border border-border/50 group-hover:border-primary/20 transition-all">
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-sm hover:text-primary cursor-pointer transition-colors">
-                            {comment.author?.display_name || 'Người dùng'}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground">{formatTime(comment.created_at)}</span>
+        <div className="space-y-4">
+            <div className="flex gap-4 group">
+                {comment.author?.avatar_url ? (
+                    <img
+                        src={comment.author.avatar_url}
+                        alt="Avatar"
+                        className="w-10 h-10 rounded-xl object-cover border-2 border-primary/10"
+                    />
+                ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold">
+                        {comment.author?.display_name?.[0]?.toUpperCase() || 'U'}
                     </div>
-                    <ContentRenderer content={comment.content} />
-                    {comment.image_url && (
-                        <div className="mt-3 rounded-xl overflow-hidden border border-border shadow-sm">
-                            <img src={comment.image_url} alt="Bình luận" className="max-w-full h-auto max-h-[300px] object-cover" />
+                )}
+                <div className="flex-1">
+                    <div className="bg-muted/40 rounded-2xl px-5 py-3 border border-border/50 group-hover:border-primary/20 transition-all">
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="font-bold text-sm hover:text-primary cursor-pointer transition-colors">
+                                {comment.author?.display_name || 'Người dùng'}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">{formatTime(comment.created_at)}</span>
                         </div>
-                    )}
-                </div>
-                <div className="flex items-center gap-6 mt-2 ml-2">
-                    <button
-                        onClick={handleLike}
-                        className={`text-xs font-bold transition-colors flex items-center gap-1.5 ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
-                    >
-                        <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
-                        {comment.likes_count > 0 && comment.likes_count} Thích
-                    </button>
-                    <button
-                        onClick={() => onReply(comment)}
-                        className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
-                    >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Phản hồi
-                    </button>
+                        <ContentRenderer content={comment.content} />
+                        {comment.image_url && (
+                            <div className="mt-3 rounded-xl overflow-hidden border border-border shadow-sm">
+                                <img src={comment.image_url} alt="Bình luận" className="max-w-full h-auto max-h-[300px] object-cover" />
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex items-center gap-6 mt-2 ml-2">
+                        <button
+                            onClick={handleLike}
+                            className={`text-xs font-bold transition-colors flex items-center gap-1.5 ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
+                        >
+                            <Heart className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
+                            {comment.likes_count > 0 && comment.likes_count} Thích
+                        </button>
+                        <button
+                            onClick={() => onReply(comment)}
+                            className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors flex items-center gap-1.5"
+                        >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            Phản hồi
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Render Replies */}
+            {replies.length > 0 && (
+                <div className="ml-14 space-y-6 border-l-2 border-primary/5 pl-6 mt-4">
+                    {replies.map(reply => (
+                        <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            postId={postId}
+                            onReply={onReply}
+                            allComments={allComments}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -215,6 +235,7 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
                                                     comment={comment}
                                                     postId={post.id}
                                                     onReply={setReplyingTo}
+                                                    allComments={comments || []}
                                                 />
                                             </div>
                                         ))}
@@ -236,6 +257,7 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
                                                 comment={comment}
                                                 postId={post.id}
                                                 onReply={setReplyingTo}
+                                                allComments={comments || []}
                                             />
                                         ))}
                                     </div>

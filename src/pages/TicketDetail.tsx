@@ -27,7 +27,7 @@ const TicketDetail: React.FC = () => {
     const { data: messages = [], isLoading: loadingMessages } = useTicketMessages(id || '');
     const addMessage = useAddTicketMessage();
     const updateStatus = useUpdateTicketStatus();
-    const { isAdmin } = useAuth();
+    const { isAdmin, loading: authLoading } = useAuth();
 
     const handleSendReply = () => {
         if (!reply.trim()) return;
@@ -40,11 +40,30 @@ const TicketDetail: React.FC = () => {
         updateStatus.mutate({ ticketId: id!, status: newStatus });
     };
 
-    if (loadingTicket || loadingMessages) {
+    if (loadingTicket || loadingMessages || authLoading) {
         return (
             <Layout>
                 <div className="flex items-center justify-center min-h-[50vh]">
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+            </Layout>
+        );
+    }
+
+    if (!isAdmin) {
+        return (
+            <Layout>
+                <div className="max-w-7xl mx-auto px-4 py-20 text-center">
+                    <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-6 text-destructive">
+                        <ShieldAlert className="w-10 h-10" />
+                    </div>
+                    <h2 className="text-2xl font-bold mb-4">Trang này chỉ dành cho Quản trị viên</h2>
+                    <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                        Bạn không có quyền truy cập vào khu vực này. Vui lòng quay lại Dashboard để xem các yêu cầu hỗ trợ của bạn.
+                    </p>
+                    <Button asChild variant="outline">
+                        <Link to="/dashboard">Quay lại Dashboard</Link>
+                    </Button>
                 </div>
             </Layout>
         );
@@ -56,7 +75,7 @@ const TicketDetail: React.FC = () => {
                 <div className="text-center py-20">
                     <h2 className="text-2xl font-bold mb-4">Không tìm thấy ticket</h2>
                     <Button asChild>
-                        <Link to="/dashboard">Quay lại Dashboard</Link>
+                        <Link to="/admin">Quay lại Admin Console</Link>
                     </Button>
                 </div>
             </Layout>
@@ -153,8 +172,8 @@ const TicketDetail: React.FC = () => {
                                         className={`flex gap-3 ${isStaff ? 'flex-row-reverse' : 'flex-row'} items-start animate-in fade-in slide-in-from-bottom-2 duration-300`}
                                     >
                                         <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-extrabold shadow-sm ${isStaff
-                                                ? 'bg-primary text-primary-foreground border-2 border-primary/20 ring-2 ring-primary/10 order-2'
-                                                : 'bg-muted border border-border order-0'
+                                            ? 'bg-primary text-primary-foreground border-2 border-primary/20 ring-2 ring-primary/10 order-2'
+                                            : 'bg-muted border border-border order-0'
                                             }`}>
                                             {msg.author?.display_name?.[0].toUpperCase() || (isStaff ? 'S' : 'U')}
                                         </div>
@@ -169,8 +188,8 @@ const TicketDetail: React.FC = () => {
                                                 </span>
                                             </div>
                                             <div className={`p-3.5 rounded-2xl text-[13px] leading-relaxed shadow-sm ${isStaff
-                                                    ? 'bg-primary text-primary-foreground rounded-tr-none border-0'
-                                                    : 'bg-card border border-border rounded-tl-none font-medium text-foreground'
+                                                ? 'bg-primary text-primary-foreground rounded-tr-none border-0'
+                                                : 'bg-card border border-border rounded-tl-none font-medium text-foreground'
                                                 }`}>
                                                 <p className="whitespace-pre-wrap">{msg.message}</p>
                                             </div>

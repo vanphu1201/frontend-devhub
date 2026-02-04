@@ -159,11 +159,12 @@ const EditBlogPost: React.FC = () => {
         );
     }
 
-    if (!isAdmin && post?.user_id !== user?.id) {
+    if (!isAdmin) {
         return (
             <Layout>
                 <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-                    <h2 className="text-2xl font-bold mb-4">Bạn không có quyền chỉnh sửa bài viết này</h2>
+                    <h2 className="text-2xl font-bold mb-4">Trang này chỉ dành cho Quản trị viên</h2>
+                    <p className="text-muted-foreground mb-8">Bạn không có quyền chỉnh sửa nội dung bài viết này trực tiếp.</p>
                     <Button asChild variant="outline">
                         <Link to="/blog">Quay lại Blog</Link>
                     </Button>

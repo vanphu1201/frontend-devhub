@@ -24,16 +24,19 @@ import {
   Zap,
   Layers as LayersIcon,
   Loader2,
-  Edit
+  Edit,
+  Flame,
+  ThumbsUp
 } from 'lucide-react';
 import { useProfile, useIsFollowing, useFollowUser, useUnfollowUser } from '@/hooks/useProfile';
-import { useUserPosts, Post } from '@/hooks/usePosts';
-import { useUserProducts, Product } from '@/hooks/useProducts';
-import { useUserSeries } from '@/hooks/useBlogPosts';
+import { useUserPosts } from '@/hooks/usePosts';
+import { useUserProducts } from '@/hooks/useProducts';
+import { useUserSeries, useUserBlogPosts } from '@/hooks/useBlogPosts';
 import { useUserBadges } from '@/hooks/useBadges';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import PostCard from '@/components/home/PostCard';
 
 const Profile: React.FC = () => {
   const { username } = useParams();
@@ -81,12 +84,32 @@ const Profile: React.FC = () => {
     return 'U';
   };
 
-  // Mock badges and achievements (would come from separate tables in real app)
-  // Achievements (can be calculated or fetched from another hook)
+  const { data: userBlogs } = useUserBlogPosts(profileUserId || '');
+
+  // Dynamic achievements calculation
+  const totalLikes = (userPosts?.reduce((acc, p) => acc + (p.likes_count || 0), 0) || 0) +
+    (userBlogs?.reduce((acc, b) => acc + (b.likes_count || 0), 0) || 0);
+
+  const reputationMilestone = profile?.reputation ? (Math.floor(profile.reputation / 1000) + 1) * 1000 : 1000;
+  const reputationProgress = profile?.reputation ? Math.min(Math.round((profile.reputation % 1000) / 10), 100) : 0;
+
+  const likesGoal = 100;
+  const likesProgress = Math.min(Math.round((totalLikes / likesGoal) * 100), 100);
+
   const achievements = [
-    { name: 'Streak 7 ngày', progress: 50, icon: '🔥' },
-    { name: 'Nhận 100 likes', progress: 25, icon: '❤️' },
+    {
+      name: `Bậc thầy Reputation (${reputationMilestone})`,
+      progress: reputationProgress,
+      icon: <Trophy className="w-3.5 h-3.5 text-yellow-500" />
+    },
+    {
+      name: `Người truyền cảm hứng (${totalLikes}/${likesGoal} likes)`,
+      progress: likesProgress,
+      icon: <ThumbsUp className="w-3.5 h-3.5 text-pink-500" />
+    },
   ];
+
+  // (Optional) Streak logic could go here if implemented in DB
 
   if (profileLoading) {
     return (
@@ -265,18 +288,22 @@ const Profile: React.FC = () => {
 
               {/* Stats Card */}
               <div className="bg-muted/50 rounded-xl p-4">
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-primary">{(profile.reputation || 0).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">Điểm uy tín</div>
+                    <div className="text-xl font-bold text-primary">{(profile.reputation || 0).toLocaleString()}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Uy tín</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{(profile.followers_count || 0).toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">Followers</div>
+                  <div className="text-center border-l border-border">
+                    <div className="text-xl font-bold text-orange-500">{(profile.consumption_points || 0).toLocaleString()}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Tiêu dùng</div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{profile.following_count || 0}</div>
-                    <div className="text-xs text-muted-foreground">Following</div>
+                  <div className="text-center border-l border-border">
+                    <div className="text-xl font-bold">{(profile.followers_count || 0).toLocaleString()}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Followers</div>
+                  </div>
+                  <div className="text-center border-l border-border">
+                    <div className="text-xl font-bold">{profile.following_count || 0}</div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Following</div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -328,34 +355,7 @@ const Profile: React.FC = () => {
                   </div>
                 ) : userPosts && userPosts.length > 0 ? (
                   userPosts.map((post) => (
-                    <article
-                      key={post.id}
-                      className="bg-card rounded-xl border border-border p-5 hover:border-primary/50 transition-colors"
-                    >
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
-                        <p className="line-clamp-3">{post.content}</p>
-                      </div>
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="flex flex-wrap gap-2">
-                          {post.tags?.map((tag) => (
-                            <Badge key={tag} variant="tech" className="text-xs">
-                              #{tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            {(post.views_count || 0).toLocaleString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-4 h-4" />
-                            {post.likes_count || 0}
-                          </span>
-                          <span>{formatTime(post.created_at)}</span>
-                        </div>
-                      </div>
-                    </article>
+                    <PostCard key={post.id} post={post} />
                   ))
                 ) : (
                   <div className="text-center py-12 text-muted-foreground">
@@ -508,7 +508,7 @@ const Profile: React.FC = () => {
                   <div key={index}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm flex items-center gap-2">
-                        {achievement.icon} {achievement.name}
+                        {achievement.icon} <span className="font-medium">{achievement.name}</span>
                       </span>
                       <span className="text-xs text-muted-foreground">{achievement.progress}%</span>
                     </div>

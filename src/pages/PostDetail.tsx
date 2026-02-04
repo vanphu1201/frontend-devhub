@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import { usePost } from '@/hooks/usePosts';
 import { Loader2 } from 'lucide-react';
-import { PostCard } from './Feed';
+import { PostCard } from '@/components/home/PostCard';
 
 const PostDetail = () => {
     const { id } = useParams<{ id: string }>();

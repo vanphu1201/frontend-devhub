@@ -235,24 +235,33 @@ export const useAdminTickets = () => {
       const enhancedTickets = await Promise.all(
         (data || []).map(async (ticket) => {
           let product = null;
-          if (ticket.product_id) {
-            const { data: productData } = await supabase
-              .from('products')
-              .select('id, name')
-              .eq('id', ticket.product_id)
-              .single();
-            product = productData;
+          try {
+            if (ticket.product_id) {
+              const { data: productData } = await supabase
+                .from('products')
+                .select('id, name')
+                .eq('id', ticket.product_id)
+                .single();
+              product = productData;
+            }
+          } catch (e) {
+            console.error('Error fetching product for ticket:', e);
           }
 
-          const author = await fetchProfile(ticket.user_id);
+          const author = await fetchProfile(ticket.user_id).catch(() => null);
 
-          // Get message count
-          const { count } = await supabase
-            .from('ticket_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('ticket_id', ticket.id);
+          let messages_count = 0;
+          try {
+            const { count } = await supabase
+              .from('ticket_messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('ticket_id', ticket.id);
+            messages_count = count || 0;
+          } catch (e) {
+            console.error('Error fetching message count for ticket:', e);
+          }
 
-          return { ...ticket, product, author, messages_count: count || 0 };
+          return { ...ticket, product, author, messages_count };
         })
       );
 
@@ -271,16 +280,17 @@ export const useUpdateTicketStatus = () => {
         .from('tickets')
         .update({ status })
         .eq('id', ticketId)
-        .select()
-        .single();
+        .select();
 
       if (error) throw error;
-      return data;
+      if (!data || data.length === 0) throw new Error('Không tìm thấy ticket hoặc bạn không có quyền cập nhật');
+      return data[0];
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['tickets', data.id] });
-      toast.success('Đã cập nhật trạng thái!');
+      queryClient.invalidateQueries({ queryKey: ['admin_tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', data.id] });
+      toast.success('Cập nhật trạng thái thành công!');
     },
     onError: (error) => {
       toast.error('Lỗi: ' + error.message);

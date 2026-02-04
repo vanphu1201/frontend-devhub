@@ -61,11 +61,16 @@ const fetchProfile = async (userId: string) => {
   }
 };
 
-export const usePosts = (filter: 'trending' | 'latest' | 'following' = 'latest') => {
+export const usePosts = (filter: 'trending' | 'latest' | 'following' = 'latest', search?: string) => {
   return useQuery({
-    queryKey: ['posts', filter],
+    queryKey: ['posts', filter, search],
     queryFn: async () => {
       let query = supabase.from('posts').select('*');
+
+      if (search) {
+        // Simple search for content or tags
+        query = query.or(`content.ilike.%${search}%,tags.cs.{${search}}`);
+      }
 
       if (filter === 'latest') {
         query = query.order('created_at', { ascending: false });

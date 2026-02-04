@@ -99,11 +99,12 @@ const EditSeries: React.FC = () => {
         );
     }
 
-    if (!isAdmin && data?.series.user_id !== user?.id) {
+    if (!isAdmin) {
         return (
             <Layout>
                 <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-                    <h2 className="text-2xl font-bold mb-4">Bạn không có quyền chỉnh sửa series này</h2>
+                    <h2 className="text-2xl font-bold mb-4">Trang này chỉ dành cho Quản trị viên</h2>
+                    <p className="text-muted-foreground mb-8">Bạn không có quyền chỉnh sửa series này trực tiếp.</p>
                     <Button asChild variant="outline">
                         <Link to="/blog">Quay lại Blog</Link>
                     </Button>

@@ -14,6 +14,7 @@ export interface Resource {
   file_size: string | null;
   is_premium: boolean;
   price: number;
+  points_price: number;
   downloads_count: number;
   rating: number;
   reviews_count: number;
@@ -25,6 +26,13 @@ export interface Resource {
     display_name: string | null;
     avatar_url: string | null;
   };
+}
+
+export interface ResourcePurchase {
+  id: string;
+  user_id: string;
+  resource_id: string;
+  unlocked_at: string;
 }
 
 // Helper function to fetch profile for a user
@@ -195,6 +203,49 @@ export const useDeleteResource = () => {
     },
   });
 };
+export const useUserResourcePurchases = () => {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['resource_purchases', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const result = await (supabase as any)
+        .from('resource_purchases')
+        .select('*')
+        .eq('user_id', user.id);
 
+      if (result.error) throw result.error;
+      return (result.data || []) as unknown as ResourcePurchase[];
+    },
+    enabled: !!user?.id,
+  });
+};
 
+export const useUnlockResource = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
+  return useMutation({
+    mutationFn: async (resourceId: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
+
+      const result = await (supabase as any).rpc('unlock_resource_with_points', {
+        p_resource_id: resourceId,
+      });
+
+      if (result.error) throw result.error;
+      if (!result.data.success) throw new Error(result.data.message);
+
+      return result.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resource_purchases', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+      toast.success('Đã mở khóa tài liệu thành công!');
+    },
+    onError: (error: any) => {
+      toast.error('Lỗi: ' + error.message);
+    },
+  });
+};

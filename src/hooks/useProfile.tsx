@@ -18,6 +18,7 @@ export interface Profile {
   linkedin_username: string | null;
   skills: string[];
   reputation: number;
+  consumption_points: number;
   followers_count: number;
   following_count: number;
   created_at: string;
@@ -60,6 +61,22 @@ export const useProfileByUsername = (username: string) => {
       return data as Profile;
     },
     enabled: !!username,
+  });
+};
+
+export const useLeaderboard = (limit = 10) => {
+  return useQuery({
+    queryKey: ['leaderboard', limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('reputation', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return data as Profile[];
+    },
   });
 };
 

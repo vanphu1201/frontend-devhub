@@ -1,72 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Trophy, Medal, Award, TrendingUp } from 'lucide-react';
+import { ArrowRight, Trophy, Medal, Award, TrendingUp, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useLeaderboard } from '@/hooks/useProfile';
 
 const TopContributors: React.FC = () => {
-  const contributors = [
-    {
-      id: 1,
-      name: 'Nguyễn Minh Đức',
-      username: '@minhduc',
-      avatar: 'M',
-      reputation: 12500,
-      badges: ['JavaScript Expert', 'Top Contributor'],
-      skills: ['React', 'Node.js', 'TypeScript'],
-      rank: 1,
-      posts: 156,
-      answers: 423,
-    },
-    {
-      id: 2,
-      name: 'Trần Thị Hương',
-      username: '@huongtran',
-      avatar: 'H',
-      reputation: 10800,
-      badges: ['Python Master', 'Mentor'],
-      skills: ['Python', 'Django', 'AI/ML'],
-      rank: 2,
-      posts: 98,
-      answers: 387,
-    },
-    {
-      id: 3,
-      name: 'Lê Văn Thành',
-      username: '@thanhlv',
-      avatar: 'T',
-      reputation: 9200,
-      badges: ['DevOps Pro', 'Bug Hunter'],
-      skills: ['Docker', 'Kubernetes', 'AWS'],
-      rank: 3,
-      posts: 67,
-      answers: 298,
-    },
-    {
-      id: 4,
-      name: 'Phạm Quốc Anh',
-      username: '@quocanh',
-      avatar: 'A',
-      reputation: 8500,
-      badges: ['Mobile Expert'],
-      skills: ['React Native', 'Flutter', 'iOS'],
-      rank: 4,
-      posts: 89,
-      answers: 234,
-    },
-    {
-      id: 5,
-      name: 'Hoàng Thị Mai',
-      username: '@maihoang',
-      avatar: 'M',
-      reputation: 7800,
-      badges: ['Frontend Pro'],
-      skills: ['Vue.js', 'CSS', 'Animation'],
-      rank: 5,
-      posts: 78,
-      answers: 189,
-    },
-  ];
+  const { data: contributors, isLoading } = useLeaderboard(5);
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -94,6 +34,14 @@ const TopContributors: React.FC = () => {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <section className="py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -117,7 +65,7 @@ const TopContributors: React.FC = () => {
         </div>
 
         <div className="grid gap-4">
-          {contributors.map((user, index) => (
+          {(contributors || []).map((user, index) => (
             <div
               key={user.id}
               className="group bg-card rounded-2xl border border-border p-4 sm:p-6 hover:border-primary/50 card-hover animate-fade-in flex items-center gap-4"
@@ -125,33 +73,32 @@ const TopContributors: React.FC = () => {
             >
               {/* Rank */}
               <div className="flex-shrink-0 w-10 flex items-center justify-center">
-                {getRankIcon(user.rank)}
+                {getRankIcon(index + 1)}
               </div>
 
               {/* Avatar */}
-              <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg font-bold ${user.rank === 1 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
-                  user.rank === 2 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
-                    user.rank === 3 ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white' :
-                      'bg-gradient-to-br from-primary to-accent text-primary-foreground'
+              <div className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center text-lg font-bold overflow-hidden ${index === 0 ? 'bg-gradient-to-br from-yellow-400 to-amber-500 text-white' :
+                index === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-gray-800' :
+                  index === 2 ? 'bg-gradient-to-br from-amber-500 to-orange-600 text-white' :
+                    'bg-gradient-to-br from-primary to-accent text-primary-foreground'
                 }`}>
-                {user.avatar}
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt={user.display_name || user.username || ''} className="w-full h-full object-cover" />
+                ) : (
+                  (user.display_name || user.username || 'U')[0].toUpperCase()
+                )}
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <Link to={`/profile/${user.username}`} className="font-semibold hover:text-primary transition-colors">
-                    {user.name}
+                    {user.display_name || user.username}
                   </Link>
-                  <span className="text-sm text-muted-foreground">{user.username}</span>
-                  {user.badges.slice(0, 1).map((badge) => (
-                    <Badge key={badge} variant={getRankBadge(user.rank) as any} className="hidden sm:inline-flex text-xs">
-                      {badge}
-                    </Badge>
-                  ))}
+                  <span className="text-sm text-muted-foreground">@{user.username}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  {user.skills.map((skill) => (
+                  {(user.skills || []).slice(0, 3).map((skill) => (
                     <Badge key={skill} variant="tech" className="text-xs">
                       {skill}
                     </Badge>
@@ -162,12 +109,12 @@ const TopContributors: React.FC = () => {
               {/* Stats */}
               <div className="hidden md:flex items-center gap-8 text-sm">
                 <div className="text-center">
-                  <div className="font-semibold">{user.posts}</div>
-                  <div className="text-muted-foreground text-xs">Bài viết</div>
+                  <div className="font-semibold">{user.followers_count || 0}</div>
+                  <div className="text-muted-foreground text-xs">Followers</div>
                 </div>
                 <div className="text-center">
-                  <div className="font-semibold">{user.answers}</div>
-                  <div className="text-muted-foreground text-xs">Trả lời</div>
+                  <div className="font-semibold">{user.following_count || 0}</div>
+                  <div className="text-muted-foreground text-xs">Following</div>
                 </div>
               </div>
 
