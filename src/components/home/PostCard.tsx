@@ -109,20 +109,22 @@ export const PostCard: React.FC<{ post: Post }> = ({ post }) => {
             <div className="p-6 pb-4">
                 <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                        {post.author?.avatar_url ? (
-                            <img
-                                src={post.author.avatar_url}
-                                alt={getAuthorName()}
-                                className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
-                            />
-                        ) : (
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-lg shadow-inner">
-                                {getInitial()}
-                            </div>
-                        )}
+                        <Link to={`/profile/${post.author?.username || post.user_id}`}>
+                            {post.author?.avatar_url ? (
+                                <img
+                                    src={post.author.avatar_url}
+                                    alt={getAuthorName()}
+                                    className="w-12 h-12 rounded-full object-cover border-2 border-primary/20"
+                                />
+                            ) : (
+                                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold text-lg shadow-inner">
+                                    {getInitial()}
+                                </div>
+                            )}
+                        </Link>
                         <div>
                             <div className="flex items-center gap-2">
-                                <Link to={`/profile/${post.user_id}`} className="font-semibold hover:text-primary transition-colors">
+                                <Link to={`/profile/${post.author?.username || post.user_id}`} className="font-semibold hover:text-primary transition-colors">
                                     {getAuthorName()}
                                 </Link>
                                 {post.author?.reputation && post.author.reputation > 1000 && (

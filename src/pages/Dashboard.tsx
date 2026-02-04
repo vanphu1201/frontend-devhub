@@ -16,9 +16,9 @@ import {
   Plus,
   Search,
   Filter,
-  Loader2,
   ExternalLink as ExternalLinkIcon
 } from 'lucide-react';
+import { PostCardSkeleton, ProductCardSkeleton } from '@/components/shared/Skeletons';
 import { useUserPurchases } from '@/hooks/useProducts';
 import { useUserTickets } from '@/hooks/useTickets';
 import { useAuth } from '@/hooks/useAuth';
@@ -28,8 +28,8 @@ const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'purchases' | 'tickets'>('purchases');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: purchases = [], isLoading: loadingPurchases } = useUserPurchases();
-  const { data: tickets = [], isLoading: loadingTickets } = useUserTickets();
+  const { data: purchases = [], isLoading: productsLoading } = useUserPurchases();
+  const { data: tickets = [], isLoading: postsLoading } = useUserTickets();
 
   const stats = [
     {
@@ -52,11 +52,11 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const filteredPurchases = purchases.filter((p) =>
+  const userProducts = purchases.filter((p) =>
     p.product?.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const filteredTickets = tickets.filter((t) =>
+  const userPosts = tickets.filter((t) =>
     t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
     t.product?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -155,12 +155,11 @@ const Dashboard: React.FC = () => {
         {/* Purchases Tab */}
         {activeTab === 'purchases' && (
           <div className="space-y-4">
-            {loadingPurchases ? (
-              <div className="text-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                <p>Đang tải sản phẩm...</p>
+            {productsLoading ? (
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map((i) => <ProductCardSkeleton key={i} />)}
               </div>
-            ) : filteredPurchases.length === 0 ? (
+            ) : userProducts?.length === 0 ? (
               <div className="text-center py-20 bg-muted/20 rounded-2xl border border-dashed border-border">
                 <p className="text-muted-foreground">Bạn chưa mua sản phẩm nào.</p>
                 <Button variant="link" asChild>
@@ -168,7 +167,7 @@ const Dashboard: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              filteredPurchases.map((purchase, index) => (
+              userProducts.map((purchase, index) => (
                 <div
                   key={purchase.id}
                   className="bg-card rounded-xl border border-border overflow-hidden animate-fade-in"
@@ -243,12 +242,11 @@ const Dashboard: React.FC = () => {
         {/* Tickets Tab */}
         {activeTab === 'tickets' && (
           <div className="space-y-4">
-            {loadingTickets ? (
-              <div className="text-center py-20">
-                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-                <p>Đang tải tickets...</p>
+            {postsLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => <PostCardSkeleton key={i} />)}
               </div>
-            ) : filteredTickets.length === 0 ? (
+            ) : userPosts?.length === 0 ? (
               <div className="text-center py-16 bg-card rounded-xl border border-border">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                   <MessageSquare className="w-8 h-8 text-muted-foreground" />
@@ -259,7 +257,7 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
             ) : (
-              filteredTickets.map((ticket, index) => (
+              userPosts.map((ticket, index) => (
                 <Link
                   key={ticket.id}
                   to={`/dashboard/tickets/${ticket.id}`}

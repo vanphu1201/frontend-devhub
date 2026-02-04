@@ -18,6 +18,7 @@ import {
   Heart,
   Loader2
 } from 'lucide-react';
+import { ProductCardSkeleton } from '@/components/shared/Skeletons';
 import { useProducts, Product } from '@/hooks/useProducts';
 
 const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index: number }> = ({
@@ -113,7 +114,7 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
           {product.description}
         </p>
 
-        <div className="flex items-center gap-2 mb-3">
+        <Link to={`/profile/${product.author?.username || product.user_id}`} className="flex items-center gap-2 mb-3 group/author">
           {product.author?.avatar_url ? (
             <img
               src={product.author.avatar_url}
@@ -125,11 +126,11 @@ const ProductCard: React.FC<{ product: Product; viewMode: 'grid' | 'list'; index
               {getAuthorInitial()}
             </div>
           )}
-          <span className="text-sm text-muted-foreground">{getAuthorName()}</span>
+          <span className="text-sm text-muted-foreground group-hover/author:text-primary transition-colors">{getAuthorName()}</span>
           {(product.author?.reputation ?? 0) > 1000 && (
             <Badge variant="secondary" className="text-xs">Verified</Badge>
           )}
-        </div>
+        </Link>
 
         {product.tech_stack && product.tech_stack.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3">
@@ -337,8 +338,10 @@ const Marketplace: React.FC = () => {
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <ProductCardSkeleton key={i} />
+                ))}
               </div>
             ) : error ? (
               <div className="text-center py-12 text-destructive">

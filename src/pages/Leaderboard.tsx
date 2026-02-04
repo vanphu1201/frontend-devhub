@@ -10,13 +10,13 @@ import {
   Filter,
   Star,
   Zap,
-  Shield,
-  Loader2
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Link } from 'react-router-dom';
+import { UserRowSkeleton } from '@/components/shared/Skeletons';
 import { useLeaderboard } from '@/hooks/useProfile';
 
 const Leaderboard: React.FC = () => {
@@ -120,8 +120,8 @@ const Leaderboard: React.FC = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab.id
-                    ? 'bg-background text-foreground shadow-sm border border-border/50'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                  ? 'bg-background text-foreground shadow-sm border border-border/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                   }`}
               >
                 <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : ''}`} />
@@ -133,8 +133,10 @@ const Leaderboard: React.FC = () => {
           {/* Leaderboard Table/Cards */}
           <div className="grid gap-4">
             {isLoading ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin text-primary" />
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                  <UserRowSkeleton key={i} />
+                ))}
               </div>
             ) : filteredContributors.length > 0 ? (
               filteredContributors.map((user, index) => (

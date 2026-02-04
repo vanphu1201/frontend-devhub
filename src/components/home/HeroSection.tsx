@@ -2,13 +2,28 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Code2, Users, BookOpen, ShoppingBag, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { usePlatformStats } from '@/hooks/useStats';
 
 const HeroSection: React.FC = () => {
+  const { data: platformStats } = usePlatformStats();
+
   const stats = [
-    { value: '50K+', label: 'Lập trình viên' },
-    { value: '10K+', label: 'Bài viết' },
-    { value: '500+', label: 'Sản phẩm' },
-    { value: '100K+', label: 'Lượt tải' },
+    {
+      value: platformStats ? `${(platformStats.users_count >= 1000 ? (platformStats.users_count / 1000).toFixed(1) + 'K' : platformStats.users_count)}+` : '...',
+      label: 'Lập trình viên'
+    },
+    {
+      value: platformStats ? `${(platformStats.posts_count >= 1000 ? (platformStats.posts_count / 1000).toFixed(1) + 'K' : platformStats.posts_count)}+` : '...',
+      label: 'Bài viết'
+    },
+    {
+      value: platformStats ? `${platformStats.products_count}+` : '...',
+      label: 'Sản phẩm'
+    },
+    {
+      value: platformStats ? `${(platformStats.downloads_count >= 1000 ? (platformStats.downloads_count / 1000).toFixed(1) + 'K' : platformStats.downloads_count)}+` : '...',
+      label: 'Lượt tải'
+    },
   ];
 
   return (
@@ -17,7 +32,7 @@ const HeroSection: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl animate-pulse-glow" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/20 rounded-full blur-3xl animate-pulse-glow" style={{ animationDelay: '1s' }} />
-      
+
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
@@ -26,14 +41,14 @@ const HeroSection: React.FC = () => {
               <Sparkles className="w-4 h-4" />
               Nền tảng #1 cho Developer Việt Nam
             </div>
-            
+
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight mb-6">
               Kết nối, Học hỏi và
               <span className="block gradient-hero-text">Phát triển cùng nhau</span>
             </h1>
-            
+
             <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
-              DevHub là nền tảng kết hợp mạng xã hội, học thuật và thương mại dành riêng cho cộng đồng lập trình viên. 
+              DevHub là nền tảng kết hợp mạng xã hội, học thuật và thương mại dành riêng cho cộng đồng lập trình viên.
               Chia sẻ kiến thức, mua bán source code và xây dựng sự nghiệp của bạn.
             </p>
 
@@ -52,8 +67,8 @@ const HeroSection: React.FC = () => {
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
               {stats.map((stat, index) => (
-                <div 
-                  key={stat.label} 
+                <div
+                  key={stat.label}
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 0.1}s` }}
                 >

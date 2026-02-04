@@ -219,19 +219,39 @@ export const useLikePost = () => {
   return useMutation({
     mutationFn: async (postId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
+      if (!postId) throw new Error('Post ID is required');
 
+      // 1. Double check if already liked to prevent 400/409
+      const { data: existing } = await supabase
+        .from('post_likes')
+        .select('id')
+        .eq('post_id', postId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) return;
+
+      // 2. Insert like
       const { error } = await supabase
         .from('post_likes')
         .insert({ post_id: postId, user_id: user.id });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in useLikePost insert:', error);
+        throw error;
+      }
 
-      // Update likes count on post
-      const { data: post } = await supabase
+      // 3. Update likes count on post
+      const { data: post, error: fetchError } = await supabase
         .from('posts')
         .select('likes_count')
         .eq('id', postId)
         .single();
+
+      if (fetchError) {
+        console.error('Error fetching post likes_count:', fetchError);
+        return;
+      }
 
       if (post) {
         await supabase
@@ -244,6 +264,9 @@ export const useLikePost = () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post_likes'] });
     },
+    onError: (error: any) => {
+      toast.error('Lỗi khi thích bài viết: ' + (error.message || 'Lỗi server'));
+    }
   });
 };
 
@@ -254,6 +277,7 @@ export const useUnlikePost = () => {
   return useMutation({
     mutationFn: async (postId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
+      if (!postId) throw new Error('Post ID is required');
 
       const { error } = await supabase
         .from('post_likes')
@@ -261,14 +285,19 @@ export const useUnlikePost = () => {
         .eq('post_id', postId)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in useUnlikePost delete:', error);
+        throw error;
+      }
 
       // Update likes count on post
-      const { data: post } = await supabase
+      const { data: post, error: fetchError } = await supabase
         .from('posts')
         .select('likes_count')
         .eq('id', postId)
         .single();
+
+      if (fetchError) return;
 
       if (post && post.likes_count > 0) {
         await supabase
@@ -281,6 +310,9 @@ export const useUnlikePost = () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post_likes'] });
     },
+    onError: (error: any) => {
+      toast.error('Lỗi khi bỏ thích: ' + (error.message || 'Lỗi server'));
+    }
   });
 };
 

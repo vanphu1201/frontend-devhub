@@ -289,12 +289,18 @@ const BlogPost: React.FC = () => {
             {/* Author Card */}
             <div className="bg-card rounded-xl border border-border p-4 mb-8">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-xl shadow-sm">
-                  {post.author?.display_name?.[0].toUpperCase() || 'U'}
-                </div>
+                <Link to={`/profile/${post.author?.username || post.user_id}`}>
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-xl shadow-sm overflow-hidden">
+                    {post.author?.avatar_url ? (
+                      <img src={post.author.avatar_url} alt={post.author.display_name || ''} className="w-full h-full object-cover" />
+                    ) : (
+                      post.author?.display_name?.[0].toUpperCase() || 'U'
+                    )}
+                  </div>
+                </Link>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <Link to={`/profile/${post.author?.username}`} className="font-semibold hover:text-primary transition-colors">
+                    <Link to={`/profile/${post.author?.username || post.user_id}`} className="font-semibold hover:text-primary transition-colors">
                       {post.author?.display_name || 'Người dùng'}
                     </Link>
                     <Badge variant="gold" className="text-[10px] h-5">Pro</Badge>

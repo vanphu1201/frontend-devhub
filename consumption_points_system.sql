@@ -48,24 +48,18 @@ DECLARE
     v_target_user_id UUID;
     v_points_change INTEGER := 0;
 BEGIN
-    IF (TG_TABLE_NAME = 'post_likes' OR TG_TABLE_NAME = 'blog_post_likes') THEN
-        SELECT user_id INTO v_target_user_id FROM (
-            SELECT user_id FROM public.posts WHERE id = COALESCE(NEW.post_id, OLD.post_id, NEW.blog_post_id, OLD.blog_post_id)
-            UNION ALL
-            SELECT user_id FROM public.blog_posts WHERE id = COALESCE(NEW.post_id, OLD.post_id, NEW.blog_post_id, OLD.blog_post_id)
-        ) AS combined LIMIT 1;
-        
-        v_points_change := CASE 
-            WHEN TG_TABLE_NAME = 'post_likes' THEN 10 
-            WHEN TG_TABLE_NAME = 'blog_post_likes' THEN 20 
-            ELSE 0 
-        END;
+    IF (TG_TABLE_NAME = 'post_likes') THEN
+        SELECT user_id INTO v_target_user_id FROM public.posts WHERE id = COALESCE(NEW.post_id, OLD.post_id);
+        v_points_change := 10;
+    ELSIF (TG_TABLE_NAME = 'blog_post_likes') THEN
+        SELECT user_id INTO v_target_user_id FROM public.blog_posts WHERE id = COALESCE(NEW.blog_post_id, OLD.blog_post_id);
+        v_points_change := 20;
     ELSIF (TG_TABLE_NAME = 'product_reviews') THEN
         SELECT user_id INTO v_target_user_id FROM public.products WHERE id = COALESCE(NEW.product_id, OLD.product_id);
         v_points_change := CASE 
-            WHEN NEW.rating >= 5 THEN 100
-            WHEN NEW.rating >= 4 THEN 50
-            WHEN NEW.rating <= 2 THEN -50
+            WHEN COALESCE(NEW.rating, OLD.rating, 0) >= 5 THEN 100
+            WHEN COALESCE(NEW.rating, OLD.rating, 0) = 4 THEN 50
+            WHEN COALESCE(NEW.rating, OLD.rating, 0) <= 2 AND COALESCE(NEW.rating, OLD.rating, 0) > 0 THEN -50
             ELSE 0 
         END;
     END IF;

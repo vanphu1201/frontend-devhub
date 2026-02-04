@@ -45,6 +45,7 @@ import {
 } from '@/hooks/useBlogPosts';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { PostCardSkeleton } from '@/components/shared/Skeletons';
 
 const BlogCard: React.FC<{ post: IBlogPost }> = ({ post }) => {
   const { user } = useAuth();
@@ -307,6 +308,10 @@ const Blog: React.FC = () => {
               <div className="col-span-2 text-center py-12 flex flex-col items-center gap-3">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <p className="text-muted-foreground">Đang tải series...</p>
+              </div>
+            ) : featuredLoading ? (
+              <div className="grid sm:grid-cols-2 gap-6">
+                {[1, 2].map((i) => <PostCardSkeleton key={i} />)}
               </div>
             ) : series?.length === 0 ? (
               <div className="col-span-2 text-center py-20 bg-muted/20 rounded-2xl border border-dashed">

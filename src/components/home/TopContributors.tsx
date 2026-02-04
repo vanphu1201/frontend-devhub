@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Trophy, Medal, Award, TrendingUp, Loader2 } from 'lucide-react';
+import { ArrowRight, Trophy, Medal, Award, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { UserRowSkeleton } from '@/components/shared/Skeletons';
 import { useLeaderboard } from '@/hooks/useProfile';
 
 const TopContributors: React.FC = () => {
@@ -36,8 +37,8 @@ const TopContributors: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 space-y-4">
+        {[1, 2, 3, 4, 5].map((i) => <UserRowSkeleton key={i} />)}
       </div>
     );
   }

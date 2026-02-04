@@ -48,6 +48,7 @@ import PostMenu from '@/components/home/PostMenu';
 import ContentRenderer from '@/components/ui/ContentRenderer';
 import VisualBlockEditor, { EditorBlock } from '@/components/ui/VisualBlockEditor';
 import PostCard from '@/components/home/PostCard';
+import { PostCardSkeleton } from '@/components/shared/Skeletons';
 
 
 const Feed: React.FC = () => {
@@ -246,8 +247,10 @@ const Feed: React.FC = () => {
             {/* Posts */}
             <div className="space-y-6">
               {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="space-y-6">
+                  {[1, 2, 3].map((i) => (
+                    <PostCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : error ? (
                 <div className="text-center py-12 text-destructive">

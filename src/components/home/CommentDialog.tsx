@@ -38,8 +38,9 @@ const CommentItem: React.FC<{
     comment: Comment;
     postId: string;
     onReply: (comment: Comment) => void;
+    onZoomImage: (url: string) => void;
     allComments: Comment[];
-}> = ({ comment, postId, onReply, allComments = [] }) => {
+}> = ({ comment, postId, onReply, onZoomImage, allComments = [] }) => {
     const { user } = useAuth();
     const { data: isLiked } = useIsCommentLiked(comment.id);
     const likeComment = useLikeComment();
@@ -88,7 +89,10 @@ const CommentItem: React.FC<{
                         </div>
                         <ContentRenderer content={comment.content} />
                         {comment.image_url && (
-                            <div className="mt-3 rounded-xl overflow-hidden border border-border shadow-sm">
+                            <div
+                                className="mt-3 rounded-xl overflow-hidden border border-border shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity"
+                                onClick={() => onZoomImage(comment.image_url!)}
+                            >
                                 <img src={comment.image_url} alt="Bình luận" className="max-w-full h-auto max-h-[300px] object-cover" />
                             </div>
                         )}
@@ -121,6 +125,7 @@ const CommentItem: React.FC<{
                             comment={reply}
                             postId={postId}
                             onReply={onReply}
+                            onZoomImage={onZoomImage}
                             allComments={allComments}
                         />
                     ))}
@@ -136,6 +141,7 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [replyingTo, setReplyingTo] = useState<Comment | null>(null);
+    const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
     const { data: comments, isLoading } = usePostComments(post.id);
     const createComment = useCreateComment();
@@ -235,6 +241,7 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
                                                     comment={comment}
                                                     postId={post.id}
                                                     onReply={setReplyingTo}
+                                                    onZoomImage={setZoomedImage}
                                                     allComments={comments || []}
                                                 />
                                             </div>
@@ -257,6 +264,7 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
                                                 comment={comment}
                                                 postId={post.id}
                                                 onReply={setReplyingTo}
+                                                onZoomImage={setZoomedImage}
                                                 allComments={comments || []}
                                             />
                                         ))}
@@ -390,6 +398,27 @@ const CommentDialog: React.FC<CommentDialogProps> = ({ post, isOpen, onClose }) 
                     </div>
                 </DialogFooter>
             </DialogContent>
+
+            {/* Image Zoom Dialog */}
+            <Dialog open={!!zoomedImage} onOpenChange={() => setZoomedImage(null)}>
+                <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-hidden bg-transparent border-none shadow-none flex items-center justify-center">
+                    {zoomedImage && (
+                        <div className="relative group">
+                            <img
+                                src={zoomedImage}
+                                alt="Zoomed view"
+                                className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+                            />
+                            <button
+                                onClick={() => setZoomedImage(null)}
+                                className="absolute -top-4 -right-4 bg-background/80 p-2 rounded-full hover:bg-destructive hover:text-white transition-all shadow-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 };

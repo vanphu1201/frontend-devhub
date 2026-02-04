@@ -20,7 +20,11 @@ import {
   Video,
   Coins,
   Unlock,
-  ShoppingCart
+  ShoppingCart,
+  LayoutGrid,
+  List as ListIcon,
+  BookOpen, // Added BookOpen as per user's snippet
+  Award // Added Award as per user's snippet
 } from 'lucide-react';
 import {
   Dialog,
@@ -30,6 +34,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { ResourceCardSkeleton } from '@/components/shared/Skeletons'; // Added this import
 import { useResources, useUnlockResource, useUserResourcePurchases } from '@/hooks/useResources';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -38,6 +43,7 @@ const Library: React.FC = () => {
   const { profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'free' | 'premium'>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
 
   const { data: resources, isLoading: isLoadingResources } = useResources(activeTab);
   const { data: purchases } = useUserResourcePurchases();
@@ -144,6 +150,24 @@ const Library: React.FC = () => {
             <Filter className="w-4 h-4" />
             Bộ lọc
           </Button>
+          <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('list')}
+            >
+              <ListIcon className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => setViewMode('grid')}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -166,12 +190,13 @@ const Library: React.FC = () => {
           ))}
         </div>
 
-        {/* Resources Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {/* Resources Grid/List */}
+        <div className={viewMode === 'grid' ? "grid sm:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
           {isLoadingResources ? (
-            <div className="col-span-full py-20 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
-              <p className="text-muted-foreground">Đang tải tài liệu...</p>
+            <div className={viewMode === 'grid' ? "grid sm:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <ResourceCardSkeleton key={i} />
+              ))}
             </div>
           ) : filteredResources?.length === 0 ? (
             <div className="col-span-full py-20 text-center bg-muted/20 rounded-2xl border border-dashed border-border">
@@ -179,6 +204,117 @@ const Library: React.FC = () => {
             </div>
           ) : filteredResources?.map((resource, index) => {
             const TypeIcon = getTypeIcon(resource.type);
+
+            if (viewMode === 'list') {
+              return (
+                <div
+                  key={resource.id}
+                  className="group bg-card rounded-2xl border border-border overflow-hidden card-hover animate-fade-in flex flex-col md:flex-row"
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  {/* Preview (Small for list) */}
+                  <div className="relative w-full md:w-32 h-32 md:h-full bg-muted flex-shrink-0">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${getTypeColor(resource.type)} opacity-20`} />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <TypeIcon className="w-8 h-8 text-muted-foreground/50" />
+                    </div>
+                    {resource.is_premium && !isUnlocked(resource.id) && (
+                      <Badge className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-none text-[10px] px-1.5 h-4">
+                        <Lock className="w-2.5 h-2.5 mr-1" />
+                        VIP
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 p-4 md:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-bold text-lg group-hover:text-primary transition-colors line-clamp-1">
+                          {resource.title}
+                        </h3>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {resource.category || 'Chung'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-1 mb-2">
+                        {resource.description}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5" />
+                          <span>{resource.author?.display_name || 'Admin'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{new Date(resource.updated_at || resource.created_at).toLocaleDateString('vi-VN')}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-yellow-500 font-medium">
+                          <Star className="w-3.5 h-3.5 fill-current" />
+                          {resource.rating || '5.0'}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Download className="w-3.5 h-3.5" />
+                          {resource.downloads_count || 0}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                      {resource.file_url && (
+                        <>
+                          {resource.is_premium && !isUnlocked(resource.id) ? (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="gradient" size="sm" className="gap-2 w-full md:w-auto rounded-xl">
+                                  <Unlock className="w-3.5 h-3.5" />
+                                  Mở khóa
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[400px] rounded-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Mở khóa tài liệu</DialogTitle>
+                                  <DialogDescription>Chọn phương thức để sở hữu vĩnh viễn tài liệu này</DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-3 py-4">
+                                  <Button onClick={() => handleUnlock(resource.id, resource.points_price || 0)} className="flex flex-col h-16 gap-0 bg-muted-foreground/10 hover:bg-primary/10 text-foreground border border-border" variant="outline">
+                                    <div className="flex items-center gap-2 font-bold text-orange-500">
+                                      <Coins className="w-4 h-4" />
+                                      {resource.points_price?.toLocaleString()} CP
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">Thanh toán bằng điểm tích lũy</span>
+                                  </Button>
+                                  <Button onClick={() => handleBuyWithMoney(resource.id, resource.price || 0)} className="flex flex-col h-16 gap-0 bg-muted-foreground/10 hover:bg-accent/10 text-foreground border border-border" variant="outline">
+                                    <div className="flex items-center gap-2 font-bold text-primary">
+                                      <ShoppingCart className="w-4 h-4" />
+                                      {resource.price?.toLocaleString()} VNĐ
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">Thanh toán qua ví / thẻ</span>
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          ) : (
+                            <Button variant={resource.is_premium ? "outline" : "default"} size="sm" className="gap-1 shadow-sm w-full md:w-auto rounded-xl" asChild>
+                              <a href={resource.file_url} target="_blank" rel="noopener noreferrer">
+                                <Download className="w-3.5 h-3.5" />
+                                Tải xuống
+                              </a>
+                            </Button>
+                          )}
+                          <Button size="sm" variant="secondary" className="gap-1 rounded-xl w-full md:w-auto" asChild>
+                            <a href={resource.file_url} target="_blank" rel="noopener noreferrer">
+                              <Eye className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={resource.id}

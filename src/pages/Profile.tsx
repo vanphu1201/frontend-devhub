@@ -28,7 +28,13 @@ import {
   Flame,
   ThumbsUp
 } from 'lucide-react';
-import { useProfile, useIsFollowing, useFollowUser, useUnfollowUser } from '@/hooks/useProfile';
+import {
+  PostCardSkeleton,
+  ProductCardSkeleton,
+  ResourceCardSkeleton,
+  BadgeSkeleton
+} from '@/components/shared/Skeletons';
+import { useProfile, useProfileByUsername, useUpdateProfile, useIsFollowing, useFollowUser, useUnfollowUser, Profile as IProfile } from '@/hooks/useProfile';
 import { useUserPosts } from '@/hooks/usePosts';
 import { useUserProducts } from '@/hooks/useProducts';
 import { useUserSeries, useUserBlogPosts } from '@/hooks/useBlogPosts';
@@ -41,17 +47,29 @@ import PostCard from '@/components/home/PostCard';
 const Profile: React.FC = () => {
   const { username } = useParams();
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'posts' | 'series' | 'products' | 'badges'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'series' | 'products' | 'badges'>('badges');
 
-  // Determine if viewing own profile or someone else's
-  const profileUserId = username || currentUser?.id;
+  // Check if username parameter is a UUID
+  const isUUID = username && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(username);
 
-  const { data: profile, isLoading: profileLoading, error: profileError } = useProfile(profileUserId);
+  // If no username param, we're at /profile (own profile)
+  // If username param is UUID, fetch by ID
+  // If username param is NOT UUID (slug), fetch by username
+  const profileIdQuery = useProfile(!username ? currentUser?.id : (isUUID ? username : undefined));
+  const profileUsernameQuery = useProfileByUsername(!isUUID && username ? username : '');
+
+  const profile = isUUID || !username ? profileIdQuery.data : profileUsernameQuery.data;
+  const profileLoading = isUUID || !username ? profileIdQuery.isLoading : profileUsernameQuery.isLoading;
+  const profileError = isUUID || !username ? profileIdQuery.error : profileUsernameQuery.error;
+
+  const profileUserId = profile?.id;
+
   const { data: isFollowing } = useIsFollowing(profileUserId || '');
   const { data: userPosts, isLoading: postsLoading } = useUserPosts(profileUserId || '');
   const { data: userProducts, isLoading: productsLoading } = useUserProducts(profileUserId || '');
   const { data: userSeries, isLoading: seriesLoading } = useUserSeries(profileUserId || '');
   const { data: userBadges, isLoading: badgesLoading } = useUserBadges(profileUserId || '');
+
   const followUser = useFollowUser();
   const unfollowUser = useUnfollowUser();
 
@@ -327,10 +345,10 @@ const Profile: React.FC = () => {
             {/* Tabs */}
             <div className="flex items-center gap-1 bg-muted/50 rounded-xl p-1 mb-6">
               {[
+                { id: 'badges', label: 'Huy hiệu', icon: Award },
                 { id: 'posts', label: 'Bài viết', icon: FileText },
                 { id: 'series', label: 'Series', icon: LayersIcon },
                 { id: 'products', label: 'Sản phẩm', icon: ShoppingBag },
-                { id: 'badges', label: 'Huy hiệu', icon: Award },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -346,13 +364,50 @@ const Profile: React.FC = () => {
               ))}
             </div>
 
+            {/* Badges */}
+            {activeTab === 'badges' && (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {badgesLoading ? (
+                  [1, 2, 3, 4, 5, 6].map((i) => <BadgeSkeleton key={i} />)
+                ) : userBadges && userBadges.length > 0 ? (
+                  userBadges.map((userBadge) => (
+                    <div
+                      key={userBadge.id}
+                      className={`bg-card rounded-xl border border-border p-5 text-center transition-all hover:scale-105 ${userBadge.badge?.type === 'gold' ? 'border-yellow-500/30 bg-yellow-500/5' :
+                        userBadge.badge?.type === 'silver' ? 'border-gray-400/30 bg-gray-400/5' :
+                          userBadge.badge?.type === 'bronze' ? 'border-amber-600/30 bg-amber-600/5' :
+                            'border-primary/30 bg-primary/5'
+                        }`}
+                    >
+                      <div className="text-4xl mb-2">
+                        {userBadge.badge?.icon ? (
+                          <span className="text-5xl">{userBadge.badge.icon}</span>
+                        ) : (
+                          '🏅'
+                        )}
+                      </div>
+                      <h4 className="font-semibold mb-1">{userBadge.badge?.name || 'Huy hiệu'}</h4>
+                      <Badge variant={(userBadge.badge?.type === 'gold' || userBadge.badge?.type === 'silver' || userBadge.badge?.type === 'bronze') ? userBadge.badge.type as any : 'secondary'} className="text-xs">
+                        {userBadge.badge?.type || 'Standard'}
+                      </Badge>
+                      <div className="mt-2 text-[10px] text-muted-foreground uppercase tracking-widest">
+                        {userBadge.awarded_at ? new Date(userBadge.awarded_at).toLocaleDateString('vi-VN') : 'Mới nhận'}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                    Chưa có huy hiệu nào
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Posts */}
             {activeTab === 'posts' && (
               <div className="space-y-4">
                 {postsLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
+                  [1, 2, 3].map((i) => <PostCardSkeleton key={i} />)
                 ) : userPosts && userPosts.length > 0 ? (
                   userPosts.map((post) => (
                     <PostCard key={post.id} post={post} />
@@ -365,13 +420,50 @@ const Profile: React.FC = () => {
               </div>
             )}
 
+            {/* Series */}
+            {activeTab === 'series' && (
+              <div className="space-y-4">
+                {seriesLoading ? (
+                  [1, 2, 3].map((i) => <ResourceCardSkeleton key={i} />)
+                ) : userSeries && userSeries.length > 0 ? (
+                  userSeries.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={`/blog/series/${item.id}`}
+                      className="group bg-card rounded-2xl border border-border overflow-hidden card-hover shadow-sm flex h-32"
+                    >
+                      <div className="w-48 bg-muted flex-shrink-0 relative overflow-hidden">
+                        <img
+                          src={item.thumbnail_url || '/placeholder.svg'}
+                          alt={item.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/20" />
+                        <Badge variant="gradient" className="absolute top-2 left-2 text-[10px]">Series</Badge>
+                      </div>
+                      <div className="flex-1 p-5 flex flex-col justify-center">
+                        <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
+                          {item.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {item.description}
+                        </p>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                    Chưa có series nào
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Products */}
             {activeTab === 'products' && (
               <div className="grid sm:grid-cols-2 gap-4">
                 {productsLoading ? (
-                  <div className="col-span-2 flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
+                  [1, 2, 3, 4].map((i) => <ProductCardSkeleton key={i} />)
                 ) : userProducts && userProducts.length > 0 ? (
                   userProducts.map((product) => (
                     <Link
@@ -407,88 +499,6 @@ const Profile: React.FC = () => {
                 ) : (
                   <div className="col-span-2 text-center py-12 text-muted-foreground">
                     Chưa có sản phẩm nào
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Badges */}
-            {activeTab === 'badges' && (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {badgesLoading ? (
-                  <div className="col-span-full flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : userBadges && userBadges.length > 0 ? (
-                  userBadges.map((userBadge) => (
-                    <div
-                      key={userBadge.id}
-                      className={`bg-card rounded-xl border border-border p-5 text-center transition-all hover:scale-105 ${userBadge.badge?.type === 'gold' ? 'border-yellow-500/30 bg-yellow-500/5' :
-                        userBadge.badge?.type === 'silver' ? 'border-gray-400/30 bg-gray-400/5' :
-                          userBadge.badge?.type === 'bronze' ? 'border-amber-600/30 bg-amber-600/5' :
-                            'border-primary/30 bg-primary/5'
-                        }`}
-                    >
-                      <div className="text-4xl mb-2">
-                        {userBadge.badge?.icon ? (
-                          <span className="text-5xl">{userBadge.badge.icon}</span>
-                        ) : (
-                          '🏅'
-                        )}
-                      </div>
-                      <h4 className="font-semibold mb-1">{userBadge.badge?.name || 'Huy hiệu'}</h4>
-                      <Badge variant={(userBadge.badge?.type === 'gold' || userBadge.badge?.type === 'silver' || userBadge.badge?.type === 'bronze') ? userBadge.badge.type as any : 'secondary'} className="text-xs">
-                        {userBadge.badge?.type || 'Standard'}
-                      </Badge>
-                      <div className="mt-2 text-[10px] text-muted-foreground uppercase tracking-widest">
-                        {userBadge.awarded_at ? new Date(userBadge.awarded_at).toLocaleDateString('vi-VN') : 'Mới nhận'}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
-                    Chưa có huy hiệu nào
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Series */}
-            {activeTab === 'series' && (
-              <div className="space-y-4">
-                {seriesLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : userSeries && userSeries.length > 0 ? (
-                  userSeries.map((item) => (
-                    <Link
-                      key={item.id}
-                      to={`/blog/series/${item.id}`}
-                      className="group bg-card rounded-2xl border border-border overflow-hidden card-hover shadow-sm flex h-32"
-                    >
-                      <div className="w-48 bg-muted flex-shrink-0 relative overflow-hidden">
-                        <img
-                          src={item.thumbnail_url || '/placeholder.svg'}
-                          alt={item.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        />
-                        <div className="absolute inset-0 bg-black/20" />
-                        <Badge variant="gradient" className="absolute top-2 left-2 text-[10px]">Series</Badge>
-                      </div>
-                      <div className="flex-1 p-5 flex flex-col justify-center">
-                        <h3 className="font-bold text-lg mb-1 group-hover:text-primary transition-colors line-clamp-1">
-                          {item.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {item.description}
-                        </p>
-                      </div>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
-                    Chưa có series nào
                   </div>
                 )}
               </div>

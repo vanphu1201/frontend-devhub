@@ -340,16 +340,20 @@ const ProductDetail: React.FC = () => {
                       {reviews.map((review) => (
                         <div key={review.id} className="bg-card rounded-xl border border-border p-6">
                           <div className="flex items-start gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold">
-                              {review.author?.avatar_url ? (
-                                <img src={review.author.avatar_url} className="w-full h-full rounded-full object-cover" alt="" />
-                              ) : (
-                                review.author?.display_name?.[0]?.toUpperCase() || 'U'
-                              )}
-                            </div>
+                            <Link to={`/profile/${review.author?.username || review.user_id}`}>
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-semibold overflow-hidden">
+                                {review.author?.avatar_url ? (
+                                  <img src={review.author.avatar_url} className="w-full h-full object-cover" alt="" />
+                                ) : (
+                                  review.author?.display_name?.[0]?.toUpperCase() || 'U'
+                                )}
+                              </div>
+                            </Link>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium">{review.author?.display_name || 'Người dùng'}</span>
+                                <Link to={`/profile/${review.author?.username || review.user_id}`} className="font-medium hover:text-primary transition-colors">
+                                  {review.author?.display_name || 'Người dùng'}
+                                </Link>
                                 <div className="flex items-center gap-0.5">
                                   {Array.from({ length: 5 }).map((_, i) => (
                                     <Star
@@ -593,16 +597,20 @@ const ProductDetail: React.FC = () => {
               {/* Author */}
               <div className="pt-4">
                 <div className="flex items-center gap-3">
-                  {product.author?.avatar_url ? (
-                    <img src={product.author.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
-                      {product.author?.display_name?.[0]?.toUpperCase() || 'A'}
-                    </div>
-                  )}
+                  <Link to={`/profile/${product.author?.username || product.user_id}`}>
+                    {product.author?.avatar_url ? (
+                      <img src={product.author.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-primary-foreground font-bold text-lg">
+                        {product.author?.display_name?.[0]?.toUpperCase() || 'A'}
+                      </div>
+                    )}
+                  </Link>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold">{product.author?.display_name || 'Admin'}</span>
+                      <Link to={`/profile/${product.author?.username || product.user_id}`} className="font-semibold hover:text-primary transition-colors">
+                        {product.author?.display_name || 'Admin'}
+                      </Link>
                       {(product.author?.reputation ?? 0) > 1000 && (
                         <Badge variant="secondary" className="text-xs">Verified</Badge>
                       )}
