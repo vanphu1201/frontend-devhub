@@ -1,12 +1,16 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { api } from '@/lib/api';
+
+interface User {
+  id: string;
+  email: string;
+  displayName: string;
+}
 
 interface AuthContextType {
   user: User | null;
   profile: any | null;
-  session: Session | null;
   loading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -23,25 +27,18 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const fetchProfile = async (userId: string, currentUser?: User | null) => {
+  const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const response = await api.user.getProfile(userId);
 
-      if (data) {
-        setProfile(data);
-        // Use currentUser if provided, otherwise fallback to user state
-        const effectiveUser = currentUser || user;
-        const isAdminUser = (data as any).role === 'admin' || effectiveUser?.email === 'admin@codeconnect.com';
+      if (response.success && response.data) {
+        setProfile(response.data);
+        const isAdminUser = response.data.role === 'admin';
         setIsAdmin(isAdminUser);
-        return { profile: data, isAdmin: isAdminUser };
+        return { profile: response.data, isAdmin: isAdminUser };
       }
       return { profile: null, isAdmin: false };
     } catch (err) {
@@ -53,137 +50,159 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Use a flag to avoid multiple initial loads
-    let hasLoaded = false;
+    // Check if user is already logged in
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        const userId = localStorage.getItem('userId');
 
-    const handleAuthChange = async (session: Session | null) => {
-      if (!mounted) return;
-
-      setSession(session);
-      setUser(session?.user ?? null);
-
-      if (session?.user) {
-        try {
-          await fetchProfile(session.user.id, session.user);
-        } catch (err) {
-          console.error("Auth initialization profile fetch error:", err);
+        if (token && userId && mounted) {
+          // Try to fetch user profile
+          const response = await api.user.getProfile(userId);
+          if (response.success && response.data) {
+            const userData: User = {
+              id: response.data.id,
+              email: response.data.email,
+              displayName: response.data.displayName,
+            };
+            setUser(userData);
+            setProfile(response.data);
+            setIsAdmin(response.data.role === 'admin');
+          } else {
+            // Token is invalid, clear it
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userId');
+          }
         }
-      } else {
-        setProfile(null);
-        setIsAdmin(false);
-      }
-
-      if (mounted) {
-        setLoading(false);
-        hasLoaded = true;
+      } catch (err) {
+        console.error('Auth initialization error:', err);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    // Initialize session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!hasLoaded) {
-        handleAuthChange(session);
-      }
-    });
-
-    // Listen for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        handleAuthChange(session);
-      }
-    );
+    initAuth();
 
     return () => {
       mounted = false;
-      subscription.unsubscribe();
     };
   }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) throw error;
-      return { error: null };
+      const response = await api.auth.login(email, password);
+      if (response.success && response.data) {
+        localStorage.setItem('userId', response.data.id);
+        const userData: User = {
+          id: response.data.id,
+          email,
+          displayName: response.data.displayName,
+        };
+        setUser(userData);
+        await fetchProfile(response.data.id);
+        toast.success('Đăng nhập thành công!');
+        return { error: null };
+      } else {
+        throw new Error(response.error || 'Đăng nhập thất bại');
+      }
     } catch (error) {
-      return { error: error as Error };
+      const err = error as Error;
+      toast.error(err.message);
+      return { error: err };
     }
   };
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     try {
-      const redirectUrl = `${window.location.origin}/`;
-
-      const { error } = await supabase.auth.signUp({
+      const response = await api.auth.signup(
         email,
         password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            display_name: displayName || email.split('@')[0],
-          }
-        }
-      });
-      if (error) throw error;
-      return { error: null };
+        displayName || email.split('@')[0]
+      );
+      if (response.success && response.data) {
+        localStorage.setItem('userId', response.data.id);
+        const userData: User = {
+          id: response.data.id,
+          email,
+          displayName: displayName || email.split('@')[0],
+        };
+        setUser(userData);
+        await fetchProfile(response.data.id);
+        toast.success('Đăng ký thành công!');
+        return { error: null };
+      } else {
+        throw new Error(response.error || 'Đăng ký thất bại');
+      }
     } catch (error) {
-      return { error: error as Error };
+      const err = error as Error;
+      toast.error(err.message);
+      return { error: err };
     }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
-    setIsAdmin(false);
-    setSession(null);
+    try {
+      api.auth.logout();
+      setUser(null);
+      setProfile(null);
+      setIsAdmin(false);
+      localStorage.removeItem('userId');
+      toast.success('Đã đăng xuất');
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
   };
 
+
   const signInWithGithub = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      }
-    });
-    if (error) {
+    try {
+      // For OAuth, typically you'd redirect to your backend OAuth endpoint
+      // The backend would handle the OAuth code exchange
+      toast.info('Redirecting to GitHub...');
+      // This is a simplified implementation - actual OAuth flow depends on your backend setup
+      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/oauth/github`;
+    } catch (error) {
       toast.error('Đăng nhập với GitHub thất bại');
     }
   };
 
   const signInWithGoogle = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/`,
-      }
-    });
-    if (error) {
+    try {
+      // For OAuth, typically you'd redirect to your backend OAuth endpoint
+      toast.info('Redirecting to Google...');
+      window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/oauth/google`;
+    } catch (error) {
       toast.error('Đăng nhập với Google thất bại');
     }
   };
 
   const resetPassword = async (email: string) => {
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      return { error: null };
+      const response = await api.auth.forgotPassword(email);
+      if (response.success) {
+        toast.success('Email reset password đã được gửi');
+        return { error: null };
+      } else {
+        throw new Error(response.error || 'Gửi email thất bại');
+      }
     } catch (error) {
-      return { error: error as Error };
+      const err = error as Error;
+      toast.error(err.message);
+      return { error: err };
     }
   };
 
   const updatePassword = async (password: string) => {
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
-      return { error: null };
+      // This would typically require the current password as well
+      // You might need to adjust this based on your backend implementation
+      toast.error('Vui lòng sử dụng "Quên mật khẩu" để đặt lại mật khẩu');
+      return { error: new Error('Use forgot password') };
     } catch (error) {
-      return { error: error as Error };
+      const err = error as Error;
+      return { error: err };
     }
   };
 
@@ -191,7 +210,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider value={{
       user,
       profile,
-      session,
       loading,
       isAdmin,
       signIn,

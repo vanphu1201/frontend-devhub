@@ -30,7 +30,7 @@ const Register: React.FC = () => {
 
   useEffect(() => {
     if (user && !loading) {
-      navigate('/');
+      navigate('/profile');
     }
   }, [user, loading, navigate]);
 
@@ -76,7 +76,7 @@ const Register: React.FC = () => {
       }
     } else {
       toast.success('Đăng ký thành công! Đang chuyển hướng...');
-      navigate('/');
+      navigate('/profile');
     }
     setIsLoading(false);
   };
