@@ -5,7 +5,26 @@
  * Base URL: http://localhost:5000/api
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+let rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
+
+// Tự động chuẩn hóa: Đảm bảo luôn có hậu tố /v1 ở cuối API URL
+if (rawApiUrl.endsWith('/api')) {
+    rawApiUrl = rawApiUrl + '/v1';
+} else if (!rawApiUrl.endsWith('/api/v1') && !rawApiUrl.endsWith('/api/v1/')) {
+    // Nếu URL không có /api ở cuối, tự động chuẩn hóa
+    if (rawApiUrl.endsWith('/')) {
+        rawApiUrl = rawApiUrl.slice(0, -1);
+    }
+    if (!rawApiUrl.endsWith('/v1')) {
+        if (rawApiUrl.endsWith('/api')) {
+            rawApiUrl = rawApiUrl + '/v1';
+        } else {
+            rawApiUrl = rawApiUrl + '/api/v1';
+        }
+    }
+}
+
+const API_BASE_URL = rawApiUrl;
 
 // ============================================================================
 // REQUEST HELPERS
