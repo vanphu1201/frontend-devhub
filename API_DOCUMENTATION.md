@@ -600,7 +600,7 @@ Request:
   "excerpt": "...",
   "category": "tech",
   "tags": ["api", "nodejs"],
-  "image": "https://..."
+  "images": "https://..."
 }
 
 Response:

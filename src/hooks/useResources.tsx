@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -35,42 +35,42 @@ export interface ResourcePurchase {
   unlocked_at: string;
 }
 
-// Helper function to fetch profile for a user
-async function fetchProfile(userId: string) {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, avatar_url')
-    .eq('id', userId)
-    .single();
-  return data;
-}
+const mapResource = (r: any): Resource => {
+  return {
+    id: r.id || r._id,
+    user_id: r.author?.id || r.author || "",
+    title: r.title,
+    description: r.description || null,
+    type: r.type,
+    category: null,
+    file_url: r.fileUrl || null,
+    file_size: null,
+    is_premium: r.isPremium || false,
+    price: 0,
+    points_price: 0,
+    downloads_count: r.downloads || 0,
+    rating: r.rating || 0,
+    reviews_count: 0,
+    created_at: r.createdAt || new Date().toISOString(),
+    updated_at: r.updatedAt || new Date().toISOString(),
+    author: r.author ? {
+      id: r.author.id || r.author._id || "",
+      username: r.author.username || "",
+      display_name: r.author.displayName || "",
+      avatar_url: r.author.avatar || null
+    } : undefined
+  };
+};
 
 export const useResources = (filter: 'all' | 'free' | 'premium' = 'all') => {
   return useQuery({
     queryKey: ['resources', filter],
     queryFn: async () => {
-      let query = supabase
-        .from('resources')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const isPremiumParam = filter === 'free' ? 'false' : filter === 'premium' ? 'true' : undefined;
+      const res = await api.resource.getResources(filter, 50, 0);
+      if (!res.success) throw new Error(res.error || "Failed to fetch resources");
 
-      if (filter === 'free') {
-        query = query.eq('is_premium', false);
-      } else if (filter === 'premium') {
-        query = query.eq('is_premium', true);
-      }
-
-      const { data, error } = await query.limit(50);
-      if (error) throw error;
-
-      const resourcesWithAuthors = await Promise.all(
-        (data || []).map(async (resource) => {
-          const author = await fetchProfile(resource.user_id);
-          return { ...resource, author } as Resource;
-        })
-      );
-
-      return resourcesWithAuthors;
+      return (res.data?.items || []).map(mapResource);
     },
   });
 };
@@ -80,21 +80,10 @@ export const useAdminResources = () => {
   return useQuery({
     queryKey: ['resources', 'admin'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const res = await api.resource.getAdminResources();
+      if (!res.success) throw new Error(res.error || "Failed to fetch admin resources");
 
-      if (error) throw error;
-
-      const resourcesWithAuthors = await Promise.all(
-        (data || []).map(async (resource) => {
-          const author = await fetchProfile(resource.user_id);
-          return { ...resource, author } as Resource;
-        })
-      );
-
-      return resourcesWithAuthors;
+      return (res.data?.items || []).map(mapResource);
     },
     enabled: isAdmin,
   });
@@ -104,16 +93,10 @@ export const useResource = (resourceId: string) => {
   return useQuery({
     queryKey: ['resources', resourceId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resources')
-        .select('*')
-        .eq('id', resourceId)
-        .single();
+      const res = await api.resource.getResource(resourceId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch resource");
 
-      if (error) throw error;
-
-      const author = await fetchProfile(data.user_id);
-      return { ...data, author } as Resource;
+      return mapResource(res.data);
     },
     enabled: !!resourceId,
   });
@@ -127,24 +110,17 @@ export const useCreateResource = () => {
     mutationFn: async (input: Partial<Resource>) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('resources')
-        .insert({
-          user_id: user.id,
-          title: input.title!,
-          description: input.description,
-          type: input.type!,
-          category: input.category,
-          file_url: input.file_url,
-          file_size: input.file_size,
-          is_premium: input.is_premium || false,
-          price: input.price || 0,
-        })
-        .select()
-        .single();
+      // Mimic file upload or mock URL
+      const dummyFile = new File(["dummy"], "dummy.pdf", { type: "application/pdf" });
+      const res = await api.resource.createResource(dummyFile, {
+        title: input.title!,
+        type: input.type || 'pdf',
+        description: input.description || "",
+        isPremium: input.is_premium || false
+      });
 
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to create resource");
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
@@ -161,19 +137,18 @@ export const useUpdateResource = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Resource> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('resources')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const res = await api.resource.updateResource(id, {
+        title: updates.title,
+        description: updates.description || undefined,
+        isPremium: updates.is_premium
+      });
 
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to update resource");
+      return res.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
-      queryClient.invalidateQueries({ queryKey: ['resources', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['resources', data?.id] });
       toast.success('Cập nhật thành công!');
     },
     onError: (error: any) => {
@@ -187,12 +162,8 @@ export const useDeleteResource = () => {
 
   return useMutation({
     mutationFn: async (resourceId: string) => {
-      const { error } = await supabase
-        .from('resources')
-        .delete()
-        .eq('id', resourceId);
-
-      if (error) throw error;
+      const res = await api.resource.deleteResource(resourceId);
+      if (!res.success) throw new Error(res.error || "Failed to delete resource");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resources'] });
@@ -203,19 +174,22 @@ export const useDeleteResource = () => {
     },
   });
 };
+
 export const useUserResourcePurchases = () => {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['resource_purchases', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const result = await (supabase as any)
-        .from('resource_purchases')
-        .select('*')
-        .eq('user_id', user.id);
+      const res = await api.resource.getUserResourcePurchases();
+      if (!res.success) throw new Error(res.error || "Failed to fetch user resource purchases");
 
-      if (result.error) throw result.error;
-      return (result.data || []) as unknown as ResourcePurchase[];
+      return (res.data?.items || []).map((u: any) => ({
+        id: u.id,
+        user_id: user.id,
+        resource_id: u.resource?.id || "",
+        unlocked_at: u.unlockedAt
+      })) as ResourcePurchase[];
     },
     enabled: !!user?.id,
   });
@@ -229,14 +203,10 @@ export const useUnlockResource = () => {
     mutationFn: async (resourceId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const result = await (supabase as any).rpc('unlock_resource_with_points', {
-        p_resource_id: resourceId,
-      });
+      const res = await api.resource.unlockResource(resourceId);
+      if (!res.success) throw new Error(res.error || "Failed to unlock resource");
 
-      if (result.error) throw result.error;
-      if (!result.data.success) throw new Error(result.data.message);
-
-      return result.data;
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resource_purchases', user?.id] });

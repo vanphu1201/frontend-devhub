@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -15,8 +15,14 @@ export interface Ticket {
   product?: {
     id: string;
     name: string;
-  };
+  } | null;
   messages_count?: number;
+  author?: {
+    id: string;
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  } | null;
 }
 
 export interface TicketMessage {
@@ -34,15 +40,46 @@ export interface TicketMessage {
   };
 }
 
-// Helper function to fetch profile for a user
-async function fetchProfile(userId: string) {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, avatar_url')
-    .eq('id', userId)
-    .single();
-  return data;
-}
+const mapTicket = (t: any): Ticket => {
+  return {
+    id: t.id || t._id,
+    user_id: t.user?.id || t.user || "",
+    product_id: t.product?.id || t.product || null,
+    subject: t.subject || "",
+    status: t.status || 'open',
+    priority: t.priority || 'medium',
+    created_at: t.createdAt || new Date().toISOString(),
+    updated_at: t.updatedAt || new Date().toISOString(),
+    product: t.product ? {
+      id: t.product.id || t.product._id || "",
+      name: t.product.title || t.product.name || ""
+    } : null,
+    messages_count: t.messagesCount || 0,
+    author: t.user ? {
+      id: t.user.id || t.user._id || "",
+      username: t.user.username || "",
+      display_name: t.user.displayName || "",
+      avatar_url: t.user.avatar || null
+    } : null
+  };
+};
+
+const mapTicketMessage = (m: any): TicketMessage => {
+  return {
+    id: m.id || m._id,
+    ticket_id: m.ticket || "",
+    user_id: m.sender?.id || m.sender || "",
+    message: m.message || "",
+    is_staff_reply: m.isStaffReply || false,
+    created_at: m.createdAt || new Date().toISOString(),
+    author: m.sender ? {
+      id: m.sender.id || m.sender._id || "",
+      username: m.sender.username || "",
+      display_name: m.sender.displayName || "",
+      avatar_url: m.sender.avatar || null
+    } : undefined
+  };
+};
 
 export const useUserTickets = () => {
   const { user } = useAuth();
@@ -52,31 +89,10 @@ export const useUserTickets = () => {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      const res = await api.ticket.getTickets();
+      if (!res.success) throw new Error(res.error || "Failed to fetch user tickets");
 
-      if (error) throw error;
-
-      // Fetch products for each ticket
-      const ticketsWithProducts = await Promise.all(
-        (data || []).map(async (ticket) => {
-          let product = null;
-          if (ticket.product_id) {
-            const { data: productData } = await supabase
-              .from('products')
-              .select('id, name')
-              .eq('id', ticket.product_id)
-              .single();
-            product = productData;
-          }
-          return { ...ticket, product } as Ticket;
-        })
-      );
-
-      return ticketsWithProducts;
+      return (res.data || []).map(mapTicket);
     },
     enabled: !!user?.id,
   });
@@ -86,25 +102,10 @@ export const useTicket = (ticketId: string) => {
   return useQuery({
     queryKey: ['tickets', ticketId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .eq('id', ticketId)
-        .single();
+      const res = await api.ticket.getTicket(ticketId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch ticket");
 
-      if (error) throw error;
-
-      let product = null;
-      if (data.product_id) {
-        const { data: productData } = await supabase
-          .from('products')
-          .select('id, name')
-          .eq('id', data.product_id)
-          .single();
-        product = productData;
-      }
-
-      return { ...data, product } as Ticket;
+      return mapTicket(res.data);
     },
     enabled: !!ticketId,
   });
@@ -114,22 +115,10 @@ export const useTicketMessages = (ticketId: string) => {
   return useQuery({
     queryKey: ['ticket_messages', ticketId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('ticket_messages')
-        .select('*')
-        .eq('ticket_id', ticketId)
-        .order('created_at', { ascending: true });
+      const res = await api.ticket.getTicketMessages(ticketId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch ticket messages");
 
-      if (error) throw error;
-
-      const messagesWithAuthors = await Promise.all(
-        (data || []).map(async (message) => {
-          const author = await fetchProfile(message.user_id);
-          return { ...message, author } as TicketMessage;
-        })
-      );
-
-      return messagesWithAuthors;
+      return (res.data || []).map(mapTicketMessage);
     },
     enabled: !!ticketId,
   });
@@ -148,38 +137,21 @@ export const useCreateTicket = () => {
     }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      // Create ticket
-      const { data: ticket, error: ticketError } = await supabase
-        .from('tickets')
-        .insert({
-          user_id: user.id,
-          subject: input.subject,
-          product_id: input.product_id,
-          priority: input.priority || 'medium',
-        })
-        .select()
-        .single();
+      const res = await api.ticket.createTicket({
+        subject: input.subject,
+        message: input.message,
+        productId: input.product_id || undefined,
+        priority: input.priority || 'medium'
+      });
 
-      if (ticketError) throw ticketError;
-
-      // Add initial message
-      const { error: messageError } = await supabase
-        .from('ticket_messages')
-        .insert({
-          ticket_id: ticket.id,
-          user_id: user.id,
-          message: input.message,
-        });
-
-      if (messageError) throw messageError;
-
-      return ticket;
+      if (!res.success) throw new Error(res.error || "Failed to create ticket");
+      return mapTicket(res.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       toast.success('Đã tạo ticket hỗ trợ!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi tạo ticket: ' + error.message);
     },
   });
@@ -187,32 +159,23 @@ export const useCreateTicket = () => {
 
 export const useAddTicketMessage = () => {
   const queryClient = useQueryClient();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ ticketId, message }: { ticketId: string; message: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('ticket_messages')
-        .insert({
-          ticket_id: ticketId,
-          user_id: user.id,
-          message,
-          is_staff_reply: isAdmin, // Set true if the sender is an admin
-        })
-        .select()
-        .single();
+      const res = await api.ticket.addTicketMessage(ticketId, message);
+      if (!res.success) throw new Error(res.error || "Failed to add ticket message");
 
-      if (error) throw error;
-      return data;
+      return mapTicketMessage(res.data);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['ticket_messages', variables.ticketId] });
       queryClient.invalidateQueries({ queryKey: ['admin_tickets'] });
       toast.success('Đã gửi tin nhắn!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
@@ -224,48 +187,10 @@ export const useAdminTickets = () => {
   return useQuery({
     queryKey: ['admin_tickets'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tickets')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const res = await api.ticket.getAdminTickets();
+      if (!res.success) throw new Error(res.error || "Failed to fetch admin tickets");
 
-      if (error) throw error;
-
-      // Fetch products and authors for each ticket
-      const enhancedTickets = await Promise.all(
-        (data || []).map(async (ticket) => {
-          let product = null;
-          try {
-            if (ticket.product_id) {
-              const { data: productData } = await supabase
-                .from('products')
-                .select('id, name')
-                .eq('id', ticket.product_id)
-                .single();
-              product = productData;
-            }
-          } catch (e) {
-            console.error('Error fetching product for ticket:', e);
-          }
-
-          const author = await fetchProfile(ticket.user_id).catch(() => null);
-
-          let messages_count = 0;
-          try {
-            const { count } = await supabase
-              .from('ticket_messages')
-              .select('*', { count: 'exact', head: true })
-              .eq('ticket_id', ticket.id);
-            messages_count = count || 0;
-          } catch (e) {
-            console.error('Error fetching message count for ticket:', e);
-          }
-
-          return { ...ticket, product, author, messages_count };
-        })
-      );
-
-      return enhancedTickets;
+      return (res.data || []).map(mapTicket);
     },
     enabled: isAdmin,
   });
@@ -276,23 +201,18 @@ export const useUpdateTicketStatus = () => {
 
   return useMutation({
     mutationFn: async ({ ticketId, status }: { ticketId: string; status: Ticket['status'] }) => {
-      const { data, error } = await supabase
-        .from('tickets')
-        .update({ status })
-        .eq('id', ticketId)
-        .select();
+      const res = await api.ticket.updateTicketStatus(ticketId, status === 'resolved' ? 'resolved' : status === 'closed' ? 'closed' : 'open');
+      if (!res.success) throw new Error(res.error || "Failed to update ticket status");
 
-      if (error) throw error;
-      if (!data || data.length === 0) throw new Error('Không tìm thấy ticket hoặc bạn không có quyền cập nhật');
-      return data[0];
+      return mapTicket(res.data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: ['admin_tickets'] });
-      queryClient.invalidateQueries({ queryKey: ['ticket', data.id] });
+      queryClient.invalidateQueries({ queryKey: ['tickets', data.id] });
       toast.success('Cập nhật trạng thái thành công!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });

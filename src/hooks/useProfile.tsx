@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -25,6 +25,29 @@ export interface Profile {
   updated_at: string;
 }
 
+const mapProfile = (p: any): Profile => {
+  return {
+    id: p.id || p._id,
+    username: p.username || null,
+    display_name: p.displayName || null,
+    avatar_url: p.avatar || null,
+    cover_url: p.coverImage || null,
+    bio: p.bio || null,
+    location: p.location || null,
+    website: p.website || null,
+    github_username: p.githubUsername || null,
+    twitter_username: p.twitterUsername || null,
+    linkedin_username: p.linkedinUsername || null,
+    skills: p.skills || [],
+    reputation: p.reputation || 0,
+    consumption_points: p.consumptionPoints || 0,
+    followers_count: p.followers?.length || 0,
+    following_count: p.following?.length || 0,
+    created_at: p.createdAt || new Date().toISOString(),
+    updated_at: p.updatedAt || new Date().toISOString(),
+  };
+};
+
 export const useProfile = (userId?: string) => {
   const { user } = useAuth();
   const targetUserId = userId || user?.id;
@@ -34,14 +57,10 @@ export const useProfile = (userId?: string) => {
     queryFn: async () => {
       if (!targetUserId) return null;
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', targetUserId)
-        .single();
+      const res = await api.user.getProfile(targetUserId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch profile");
 
-      if (error) throw error;
-      return data as Profile;
+      return mapProfile(res.data);
     },
     enabled: !!targetUserId,
   });
@@ -51,14 +70,10 @@ export const useProfileByUsername = (username: string) => {
   return useQuery({
     queryKey: ['profile', 'username', username],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('username', username)
-        .single();
+      const res = await api.user.getProfileByUsername(username);
+      if (!res.success) throw new Error(res.error || "Failed to fetch profile by username");
 
-      if (error) throw error;
-      return data as Profile;
+      return mapProfile(res.data);
     },
     enabled: !!username,
   });
@@ -68,14 +83,10 @@ export const useLeaderboard = (limit = 10) => {
   return useQuery({
     queryKey: ['leaderboard', limit],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('reputation', { ascending: false })
-        .limit(limit);
+      const res = await api.user.getLeaderboard(limit, 0);
+      if (!res.success) throw new Error(res.error || "Failed to fetch leaderboard");
 
-      if (error) throw error;
-      return data as Profile[];
+      return (res.data || []).map(mapProfile);
     },
   });
 };
@@ -88,21 +99,21 @@ export const useUpdateProfile = () => {
     mutationFn: async (updates: Partial<Profile>) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select()
-        .single();
+      const res = await api.user.updateProfile({
+        displayName: updates.display_name,
+        username: updates.username || undefined,
+        bio: updates.bio || undefined,
+        skills: updates.skills
+      });
 
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to update profile");
+      return mapProfile(res.data);
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       toast.success('Cập nhật thông tin thành công!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi cập nhật: ' + error.message);
     },
   });
@@ -116,18 +127,15 @@ export const useFollowUser = () => {
     mutationFn: async (followingId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('follows')
-        .insert({ follower_id: user.id, following_id: followingId });
-
-      if (error) throw error;
+      const res = await api.user.followUser(followingId);
+      if (!res.success) throw new Error(res.error || "Failed to follow user");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['follows'] });
       toast.success('Đã theo dõi!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
@@ -141,20 +149,15 @@ export const useUnfollowUser = () => {
     mutationFn: async (followingId: string) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('follows')
-        .delete()
-        .eq('follower_id', user.id)
-        .eq('following_id', followingId);
-
-      if (error) throw error;
+      const res = await api.user.unfollowUser(followingId);
+      if (!res.success) throw new Error(res.error || "Failed to unfollow user");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       queryClient.invalidateQueries({ queryKey: ['follows'] });
       toast.success('Đã hủy theo dõi!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi: ' + error.message);
     },
   });
@@ -168,15 +171,10 @@ export const useIsFollowing = (targetUserId: string) => {
     queryFn: async () => {
       if (!user?.id) return false;
 
-      const { data, error } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-        .maybeSingle();
+      const res = await api.user.isFollowing(targetUserId);
+      if (!res.success) return false;
 
-      if (error) throw error;
-      return !!data;
+      return !!res.data?.isFollowing;
     },
     enabled: !!user?.id && !!targetUserId && user.id !== targetUserId,
   });
@@ -188,23 +186,12 @@ export const useUploadAvatar = () => {
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `avatars/${user.id}/${fileName}`;
+      const res = await api.user.uploadAvatar(file);
+      if (!res.success) throw new Error(res.error || "Failed to upload avatar");
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      return res.data?.avatarUrl || res.data;
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi tải ảnh đại diện: ' + error.message);
     },
   });
@@ -216,23 +203,12 @@ export const useUploadCover = () => {
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `covers/${user.id}/${fileName}`;
+      const res = await api.user.uploadCover(file);
+      if (!res.success) throw new Error(res.error || "Failed to upload cover image");
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      return res.data?.coverUrl || res.data;
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi tải ảnh bìa: ' + error.message);
     },
   });

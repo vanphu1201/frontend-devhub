@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { api } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
@@ -61,41 +61,48 @@ export interface ProductReview {
   };
 }
 
-// Helper function to fetch profile for a user
-async function fetchProfile(userId: string) {
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, username, display_name, avatar_url, reputation')
-    .eq('id', userId)
-    .single();
-  return data;
-}
+const mapProduct = (p: any): Product => {
+  return {
+    id: p.id || p._id,
+    user_id: p.author?.id || p.author || "",
+    name: p.title || "",
+    description: p.description || "",
+    long_description: p.longDescription || null,
+    category: p.category || null,
+    price: p.price || 0,
+    original_price: p.originalPrice || null,
+    tech_stack: p.techStack || [],
+    preview_images: p.previewImages || (p.image ? [p.image] : []),
+    demo_url: p.demoUrl || null,
+    documentation_url: p.documentationUrl || null,
+    download_url: p.downloadUrl || null,
+    version: p.version || "1.0.0",
+    support_duration: p.supportDuration || "6 tháng",
+    rating: p.rating || 0,
+    reviews_count: p.reviewsCount || 0,
+    downloads_count: p.sales || p.downloads || 0,
+    is_featured: p.isFeatured || false,
+    is_published: p.status === 'approved' || p.isPublished || true,
+    created_at: p.createdAt || new Date().toISOString(),
+    updated_at: p.updatedAt || new Date().toISOString(),
+    author: p.author ? {
+      id: p.author.id || p.author._id || "",
+      username: p.author.username || "",
+      display_name: p.author.displayName || "",
+      avatar_url: p.author.avatar || null,
+      reputation: p.author.reputation || 0
+    } : undefined
+  };
+};
 
 export const useProducts = (category?: string) => {
   return useQuery({
     queryKey: ['products', category],
     queryFn: async () => {
-      let query = supabase
-        .from('products')
-        .select('*')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
+      const res = await api.product.getProducts(category === 'all' ? '' : category, 20, 0, 'latest');
+      if (!res.success) throw new Error(res.error || "Failed to fetch products");
 
-      if (category && category !== 'all') {
-        query = query.eq('category', category);
-      }
-
-      const { data, error } = await query.limit(20);
-      if (error) throw error;
-
-      const productsWithAuthors = await Promise.all(
-        (data || []).map(async (product) => {
-          const author = await fetchProfile(product.user_id);
-          return { ...product, author } as Product;
-        })
-      );
-
-      return productsWithAuthors;
+      return (res.data?.items || []).map(mapProduct);
     },
   });
 };
@@ -104,24 +111,10 @@ export const useFeaturedProducts = () => {
   return useQuery({
     queryKey: ['products', 'featured'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_published', true)
-        .eq('is_featured', true)
-        .order('downloads_count', { ascending: false })
-        .limit(6);
+      const res = await api.product.getFeaturedProducts();
+      if (!res.success) throw new Error(res.error || "Failed to fetch featured products");
 
-      if (error) throw error;
-
-      const productsWithAuthors = await Promise.all(
-        (data || []).map(async (product) => {
-          const author = await fetchProfile(product.user_id);
-          return { ...product, author } as Product;
-        })
-      );
-
-      return productsWithAuthors;
+      return (res.data || []).map(mapProduct);
     },
   });
 };
@@ -130,16 +123,10 @@ export const useProduct = (productId: string) => {
   return useQuery({
     queryKey: ['products', productId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', productId)
-        .single();
+      const res = await api.product.getProduct(productId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch product");
 
-      if (error) throw error;
-
-      const author = await fetchProfile(data.user_id);
-      return { ...data, author } as Product;
+      return mapProduct(res.data);
     },
     enabled: !!productId,
   });
@@ -149,15 +136,10 @@ export const useUserProducts = (userId: string) => {
   return useQuery({
     queryKey: ['products', 'user', userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
+      const res = await api.product.getUserProducts(userId);
+      if (!res.success) throw new Error(res.error || "Failed to fetch user products");
 
-      if (error) throw error;
-      return data as Product[];
+      return (res.data || []).map(mapProduct);
     },
     enabled: !!userId,
   });
@@ -171,27 +153,18 @@ export const useUserPurchases = () => {
     queryFn: async () => {
       if (!user?.id) return [];
 
-      const { data, error } = await supabase
-        .from('purchases')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('purchased_at', { ascending: false });
+      const res = await api.product.getUserPurchases();
+      if (!res.success) throw new Error(res.error || "Failed to fetch user purchases");
 
-      if (error) throw error;
-
-      // Fetch products for each purchase
-      const purchasesWithProducts = await Promise.all(
-        (data || []).map(async (purchase) => {
-          const { data: product } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', purchase.product_id)
-            .single();
-          return { ...purchase, product } as Purchase;
-        })
-      );
-
-      return purchasesWithProducts;
+      return (res.data || []).map((pur: any) => ({
+        id: pur.id || pur._id,
+        user_id: user.id,
+        product_id: pur.product?.id || pur.product || "",
+        price_paid: pur.pricePaid || 0,
+        download_count: pur.downloadCount || 0,
+        purchased_at: pur.createdAt || new Date().toISOString(),
+        product: pur.product ? mapProduct(pur.product) : undefined
+      })) as Purchase[];
     },
     enabled: !!user?.id,
   });
@@ -205,15 +178,10 @@ export const useHasPurchased = (productId: string) => {
     queryFn: async () => {
       if (!user?.id) return false;
 
-      const { data, error } = await supabase
-        .from('purchases')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('product_id', productId)
-        .maybeSingle();
+      const res = await api.product.hasPurchased(productId);
+      if (!res.success) return false;
 
-      if (error) throw error;
-      return !!data;
+      return !!res.data?.hasPurchased;
     },
     enabled: !!user?.id && !!productId,
   });
@@ -227,25 +195,17 @@ export const usePurchaseProduct = () => {
     mutationFn: async ({ productId, price }: { productId: string; price: number }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('purchases')
-        .insert({
-          user_id: user.id,
-          product_id: productId,
-          price_paid: price,
-        })
-        .select()
-        .single();
+      const res = await api.product.purchaseProduct(productId, "mock_stripe_token");
+      if (!res.success) throw new Error(res.error || "Failed to purchase product");
 
-      if (error) throw error;
-      return data;
+      return res.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] });
       toast.success('Mua sản phẩm thành công!');
     },
-    onError: (error) => {
-      if (error.message.includes('duplicate')) {
+    onError: (error: any) => {
+      if (error.message.includes('duplicate') || error.message.includes('đã mua')) {
         toast.error('Bạn đã mua sản phẩm này rồi!');
       } else {
         toast.error('Lỗi mua hàng: ' + error.message);
@@ -253,7 +213,6 @@ export const usePurchaseProduct = () => {
     },
   });
 };
-
 
 export const useCreateProduct = () => {
   const queryClient = useQueryClient();
@@ -263,37 +222,26 @@ export const useCreateProduct = () => {
     mutationFn: async (input: Partial<Product>) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          user_id: user.id,
-          name: input.name!,
-          description: input.description!,
-          long_description: input.long_description,
-          category: input.category,
-          price: input.price || 0,
-          original_price: input.original_price,
-          tech_stack: input.tech_stack || [],
-          preview_images: input.preview_images || [],
-          demo_url: input.demo_url,
-          documentation_url: input.documentation_url,
-          download_url: input.download_url,
-          version: input.version || '1.0.0',
-          support_duration: input.support_duration || '6 tháng',
-          is_published: input.is_published ?? false,
-          is_featured: input.is_featured ?? false,
-        })
-        .select()
-        .single();
+      const res = await api.product.createProduct({
+        title: input.name!,
+        description: input.description!,
+        price: input.price || 0,
+        currency: 'VND',
+        category: input.category || 'Khác',
+        tags: input.tech_stack || [],
+        downloadUrl: input.download_url || '',
+        image: input.preview_images?.[0] || '',
+        preview: input.demo_url || undefined
+      });
 
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to create product");
+      return mapProduct(res.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       toast.success('Tạo sản phẩm thành công!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Lỗi tạo sản phẩm: ' + error.message);
     },
   });
@@ -304,21 +252,10 @@ export const useAdminProducts = () => {
   return useQuery({
     queryKey: ['products', 'admin'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const res = await api.product.getAdminProducts();
+      if (!res.success) throw new Error(res.error || "Failed to fetch admin products");
 
-      if (error) throw error;
-
-      const productsWithAuthors = await Promise.all(
-        (data || []).map(async (product) => {
-          const author = await fetchProfile(product.user_id);
-          return { ...product, author } as Product;
-        })
-      );
-
-      return productsWithAuthors;
+      return (res.data || []).map(mapProduct);
     },
     enabled: isAdmin,
   });
@@ -329,15 +266,16 @@ export const useUpdateProduct = () => {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Product> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('products')
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
+      const res = await api.product.updateProduct(id, {
+        title: updates.name,
+        description: updates.description,
+        price: updates.price,
+        tags: updates.tech_stack,
+        downloadUrl: updates.download_url || undefined
+      });
 
-      if (error) throw error;
-      return data;
+      if (!res.success) throw new Error(res.error || "Failed to update product");
+      return mapProduct(res.data);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -355,12 +293,8 @@ export const useDeleteProduct = () => {
 
   return useMutation({
     mutationFn: async (productId: string) => {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', productId);
-
-      if (error) throw error;
+      const res = await api.product.deleteProduct(productId);
+      if (!res.success) throw new Error(res.error || "Failed to delete product");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -376,22 +310,24 @@ export const useProductReviews = (productId: string) => {
   return useQuery({
     queryKey: ['product_reviews', productId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('product_reviews')
-        .select('*')
-        .eq('product_id', productId)
-        .order('created_at', { ascending: false });
+      const res = await api.product.getProductReviews(productId, 20, 0);
+      if (!res.success) throw new Error(res.error || "Failed to fetch product reviews");
 
-      if (error) throw error;
-
-      const reviewsWithAuthors = await Promise.all(
-        (data || []).map(async (review) => {
-          const author = await fetchProfile(review.user_id);
-          return { ...review, author } as ProductReview;
-        })
-      );
-
-      return reviewsWithAuthors;
+      return (res.data?.items || []).map((rev: any) => ({
+        id: rev.id || rev._id,
+        product_id: productId,
+        user_id: rev.user?.id || rev.user || "",
+        rating: rev.rating || 0,
+        comment: rev.content || "",
+        created_at: rev.createdAt || new Date().toISOString(),
+        updated_at: rev.updatedAt || new Date().toISOString(),
+        author: rev.user ? {
+          id: rev.user.id || rev.user._id || "",
+          username: rev.user.username || "",
+          display_name: rev.user.displayName || "",
+          avatar_url: rev.user.avatar || null
+        } : undefined
+      })) as ProductReview[];
     },
     enabled: !!productId,
   });
@@ -405,20 +341,10 @@ export const useAddReview = () => {
     mutationFn: async (input: { productId: string; rating: number; comment: string }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      const { data, error } = await (supabase as any)
-        .from('product_reviews')
-        .upsert({
-          product_id: input.productId,
-          user_id: user.id,
-          rating: input.rating,
-          comment: input.comment,
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
+      const res = await api.product.addProductReview(input.productId, input.rating, input.comment);
+      if (!res.success) throw new Error(res.error || "Failed to add review");
 
-      if (error) throw error;
-      return data;
+      return res.data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['product_reviews', variables.productId] });
